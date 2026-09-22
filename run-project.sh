@@ -111,11 +111,11 @@ print_success "Docker is running"
 # Step 2: Start PostgreSQL container
 print_step "Starting PostgreSQL container..."
 cd "$CONTAINER_DIR"
-if docker-compose ps -q postgres | grep -q .; then
+if docker compose ps -q postgres | grep -q .; then
     print_warning "PostgreSQL container already exists. Restarting..."
-    docker-compose restart postgres
+    docker compose restart postgres
 else
-    docker-compose up -d postgres
+    docker compose up -d postgres
 fi
 
 ask_confirmation "PostgreSQL container started. Continue to wait for it to be healthy?"
@@ -242,7 +242,7 @@ echo ""
 echo "To stop the project:"
 echo "  • Backend: kill \$(cat /tmp/backend.pid) 2>/dev/null || true"
 echo "  • Frontend: kill \$(cat /tmp/frontend.pid) 2>/dev/null || true"
-echo "  • PostgreSQL: cd $CONTAINER_DIR && docker-compose down"
+echo "  • PostgreSQL: cd $CONTAINER_DIR && docker compose down"
 echo ""
 echo "Logs:"
 echo "  • Backend: /tmp/backend.log"
