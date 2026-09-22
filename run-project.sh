@@ -186,11 +186,11 @@ else
 
     # Start Expo in a new terminal (if possible) or background
     if command -v gnome-terminal &> /dev/null; then
-        gnome-terminal -- bash -c "cd $FRONTEND_DIR && npm run dev; exec bash"
+        gnome-terminal -- bash -c "cd '$FRONTEND_DIR' && npm run dev; exec bash"
     elif command -v xterm &> /dev/null; then
-        xterm -e "cd $FRONTEND_DIR && npm run dev" &
+        xterm -e "bash -c 'cd \"$FRONTEND_DIR\" && npm run dev'" &
     elif command -v konsole &> /dev/null; then
-        konsole -e "cd $FRONTEND_DIR && npm run dev" &
+        konsole -e bash -c "cd '$FRONTEND_DIR' && npm run dev" &
     else
         print_warning "Could not open new terminal. Starting Expo in background..."
         npm run dev > /tmp/frontend.log 2>&1 &
