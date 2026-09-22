@@ -1,0 +1,191 @@
+// Porta a Porta - Schema do Banco de Dados
+// Multitenancy via condominio_id em todas as entidades
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum TipoUsuario {
+  COMPRADOR
+  VENDEDOR
+  SINDICO
+}
+
+enum StatusProduto {
+  ATIVO
+  PAUSADO
+  QUARENTENA
+  EXCLUIDO
+}
+
+enum StatusPedido {
+  PENDENTE
+  CONFIRMADO
+  EM_PREPARO
+  PRONTO_ENTREGA
+  ENTREGUE
+  CANCELADO
+}
+
+enum TipoEntrega {
+  PORTARIA
+  UNIDADE
+  COMBINAR
+}
+
+// Models
+model Condominio {
+  id        String   @id @default(uuid())
+  nome      String
+  endereco  String
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  usuarios  Usuario[]
+  produtos  Produto[]
+  pedidos   Pedido[]
+
+  @@map("condominios")
+}
+
+model Usuario {
+  id            String     @id @default(uuid())
+  condominioId  String     @map("condominio_id")
+  nome          String
+  cpf           String     @unique
+  email         String     @unique
+  senhaHash     String     @map("senha_hash")
+  unidade       String
+  tipo          TipoUsuario
+  pushToken     String?    @map("push_token")
+  criadoEm      DateTime   @default(now()) @map("criado_em")
+  atualizadoEm  DateTime   @updatedAt @map("atualizado_em")
+
+  condominio    Condominio @relation(fields: [condominioId], references: [id], onDelete: Cascade)
+  produtos      Produto[]  @relation("VendedorProdutos")
+  pedidos       Pedido[]   @relation("CompradorPedidos")
+  denuncias     Denuncia[] @relation("DenuncianteDenuncias")
+  avaliacoes    Avaliacao[]
+  logsAuditoria LogAuditoria[]
+
+  @@unique([condominioId, cpf])
+  @@unique([condominioId, email])
+  @@index([condominioId])
+  @@index([tipo])
+  @@map("usuarios")
+}
+
+model Produto {
+  id            String       @id @default(uuid())
+  condominioId  String       @map("condominio_id")
+  vendedorId    String       @map("vendedor_id")
+  nome          String
+  descricao     String?
+  preco         Decimal      @db.Decimal(10, 2)
+  categoria     String
+  status        StatusProduto @default(ATIVO)
+  criadoEm      DateTime     @default(now()) @map("criado_em")
+  atualizadoEm  DateTime     @updatedAt @map("atualizado_em")
+
+  condominio    Condominio   @relation(fields: [condominioId], references: [id], onDelete: Cascade)
+  vendedor      Usuario      @relation("VendedorProdutos", fields: [vendedorId], references: [id], onDelete: Cascade)
+  itensPedido   ItemPedido[]
+  denuncias     Denuncia[]
+
+  @@index([condominioId])
+  @@index([vendedorId])
+  @@index([status])
+  @@index([categoria])
+  @@map("produtos")
+}
+
+model Pedido {
+  id               String       @id @default(uuid())
+  condominioId     String       @map("condominio_id")
+  compradorId      String       @map("comprador_id")
+  unidadeEntrega   String       @map("unidade_entrega")
+  tipoEntrega      TipoEntrega  @map("tipo_entrega")
+  janelaHorario    String       @map("janela_horario")
+  status           StatusPedido @default(PENDENTE)
+  valorTotal       Decimal      @db.Decimal(10, 2) @map("valor_total")
+  criadoEm         DateTime     @default(now()) @map("criado_em")
+  atualizadoEm     DateTime     @updatedAt @map("atualizado_em")
+
+  condominio       Condominio   @relation(fields: [condominioId], references: [id], onDelete: Cascade)
+  comprador        Usuario      @relation("CompradorPedidos", fields: [compradorId], references: [id], onDelete: Cascade)
+  itens            ItemPedido[]
+  avaliacao        Avaliacao?
+
+  @@index([condominioId])
+  @@index([compradorId])
+  @@index([status])
+  @@map("pedidos")
+}
+
+model ItemPedido {
+  id             String   @id @default(uuid())
+  pedidoId       String   @map("pedido_id")
+  produtoId      String   @map("produto_id")
+  quantidade     Int
+  precoUnitario  Decimal  @db.Decimal(10, 2) @map("preco_unitario")
+
+  pedido         Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produto        Produto  @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+
+  @@unique([pedidoId, produtoId])
+  @@index([pedidoId])
+  @@index([produtoId])
+  @@map("itens_pedido")
+}
+
+model Denuncia {
+  id             String   @id @default(uuid())
+  produtoId      String   @map("produto_id")
+  denuncianteId  String   @map("denunciante_id")
+  motivo         String
+  criadoEm       DateTime @default(now()) @map("criado_em")
+
+  produto        Produto  @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  denunciante    Usuario  @relation("DenuncianteDenuncias", fields: [denuncianteId], references: [id], onDelete: Cascade)
+
+  @@unique([produtoId, denuncianteId])
+  @@index([produtoId])
+  @@index([denuncianteId])
+  @@map("denuncias")
+}
+
+model Avaliacao {
+  id            String   @id @default(uuid())
+  pedidoId      String   @unique @map("pedido_id")
+  compradorId   String   @map("comprador_id")
+  nota          Int
+  comentario    String?
+  removidaPor   String?  @map("removida_por")
+  criadoEm      DateTime @default(now()) @map("criado_em")
+
+  pedido        Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  comprador     Usuario  @relation(fields: [compradorId], references: [id], onDelete: Cascade)
+
+  @@index([compradorId])
+  @@map("avaliacoes")
+}
+
+model LogAuditoria {
+  id           String   @id @default(uuid())
+  sindicoId    String   @map("sindico_id")
+  acao         String
+  entidadeId   String   @map("entidade_id")
+  justificativa String?
+  criadoEm     DateTime @default(now()) @map("criado_em")
+
+  sindico      Usuario  @relation(fields: [sindicoId], references: [id], onDelete: Cascade)
+
+  @@index([sindicoId])
+  @@index([entidadeId])
+  @@map("logs_auditoria")
+}
