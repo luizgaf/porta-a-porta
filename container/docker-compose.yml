@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: porta-a-porta-postgres
+    environment:
+      POSTGRES_USER: porta_a_porta
+      POSTGRES_PASSWORD: porta_a_porta_dev
+      POSTGRES_DB: porta_a_porta
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U porta_a_porta -d porta_a_porta"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - porta-a-porta-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  porta-a-porta-network:
+    driver: bridge
