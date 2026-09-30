@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, ScrollView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, TextInput } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
@@ -83,7 +83,7 @@ export default function SearchScreen() {
       <View style={styles.produtoInfo}>
         <View style={styles.produtoHeader}>
           <Text style={styles.produtoNome} numberOfLines={1}>{item.nome}</Text>
-          <Text style={styles.produtoPreco}>R$ {item.preco.toFixed(2).replace('.', ',')}</Text>
+          <Text style={styles.produtoPreco}>R$ {parseFloat(String(item.preco)).toFixed(2).replace('.', ',')}</Text>
         </View>
         <Text style={styles.produtoCategoria}>{item.categoria}</Text>
         <View style={styles.produtoFooter}>
@@ -117,67 +117,64 @@ export default function SearchScreen() {
   );
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-    >
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Buscar produtos, categorias..."
-          value={busca}
-          onChangeText={setBusca}
-          placeholderTextColor="#9AA8B8"
-        />
-      </View>
+    <FlatList
+      data={produtos}
+      renderItem={renderProduto}
+      keyExtractor={(item) => item.id}
+      numColumns={2}
+      columnWrapperStyle={styles.gridWrapper}
+      onEndReached={handleLoadMore}
+      onEndReachedThreshold={0.5}
+      ListFooterComponent={
+        pagina < totalPaginas && !loading ? (
+          <ActivityIndicator size="small" color="#1E3A5F" style={styles.loadMoreIndicator} />
+        ) : null
+      }
+      ListHeaderComponent={
+        <View style={styles.scrollContent}>
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Buscar produtos, categorias..."
+              value={busca}
+              onChangeText={setBusca}
+              placeholderTextColor="#9AA8B8"
+            />
+          </View>
 
-      <View style={styles.categoriasContainer}>
-        <Text style={styles.sectionTitle}>Categorias</Text>
-        <FlatList
-          data={CATEGORIAS}
-          renderItem={renderCategoria}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoriasList}
-          keyExtractor={(item) => item}
-        />
-      </View>
+          <View style={styles.categoriasContainer}>
+            <Text style={styles.sectionTitle}>Categorias</Text>
+            <FlatList
+              data={CATEGORIAS}
+              renderItem={renderCategoria}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoriasList}
+              keyExtractor={(item) => item}
+            />
+          </View>
 
-      <Text style={styles.sectionTitle}>Resultados ({produtos.length})</Text>
+          <Text style={styles.sectionTitle}>Resultados ({produtos.length})</Text>
 
-      {loading && produtos.length === 0 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#1E3A5F" />
-          <Text style={styles.loadingText}>Buscando...</Text>
+          {loading && produtos.length === 0 ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#1E3A5F" />
+              <Text style={styles.loadingText}>Buscando...</Text>
+            </View>
+          ) : produtos.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="search-outline" size={48} color="#D1E3F0" />
+              <Text style={styles.emptyText}>Nenhum produto encontrado</Text>
+              <Text style={styles.emptySubtext}>
+                {busca || categoriaSelecionada
+                  ? 'Tente alterar os filtros ou termos de busca'
+                  : 'Navegue pelas categorias ou busque por nome'}
+              </Text>
+            </View>
+          ) : null}
         </View>
-      ) : produtos.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Ionicons name="search-outline" size={48} color="#D1E3F0" />
-          <Text style={styles.emptyText}>Nenhum produto encontrado</Text>
-          <Text style={styles.emptySubtext}>
-            {busca || categoriaSelecionada
-              ? 'Tente alterar os filtros ou termos de busca'
-              : 'Navegue pelas categorias ou busque por nome'}
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={produtos}
-          renderItem={renderProduto}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          columnWrapperStyle={styles.gridWrapper}
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
-          ListFooterComponent={
-            pagina < totalPaginas && !loading ? (
-              <ActivityIndicator size="small" color="#1E3A5F" style={styles.loadMoreIndicator} />
-            ) : null
-          }
-        />
-      )}
-    </ScrollView>
+      }
+    />
   );
 }
 
@@ -185,6 +182,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     paddingBottom: 100,
+    paddingTop: 16,
   },
   searchContainer: {
     marginBottom: 16,
