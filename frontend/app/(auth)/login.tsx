@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, TouchableOpacity, ScrollView } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
 import { Input, Button, Card } from '../../components/ui';
+import { colors, spacing, typography, borderRadius, layout } from '../../constants/design';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { isLoading } = useAuth();
-  const { login } = useApi();
+  const { login, setLoading, isLoading } = useAuth();
+  const { login: loginApi } = useApi();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [error, setError] = useState('');
@@ -18,13 +19,16 @@ export default function LoginScreen() {
       setError('Preencha todos os campos');
       return;
     }
-
     setError('');
+    setLoading(true);
     try {
-      const response = await login({ email, senha });
+      const response = await loginApi({ email, senha });
+      await login(response.usuario, response.token);
       router.replace('/(tabs)/home');
     } catch (err: any) {
       setError(err.message || 'Erro ao fazer login');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -32,12 +36,15 @@ export default function LoginScreen() {
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
-      <View style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.header}>
-          <Text style={styles.title}>Entrar</Text>
-          <Text style={styles.subtitle}>Acesse sua conta no Porta a Porta</Text>
+          <Text style={styles.title}>Bem-vindo(a)</Text>
+          <Text style={styles.subtitle}>Digite suas credenciais para continuar</Text>
         </View>
 
         <Card style={styles.formCard}>
@@ -49,8 +56,6 @@ export default function LoginScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
-            error={error}
-            style={styles.input}
           />
 
           <Input
@@ -60,11 +65,9 @@ export default function LoginScreen() {
             onChangeText={setSenha}
             secureTextEntry
             autoComplete="password"
-            error={error}
-            style={styles.input}
           />
 
-          {error && <Text style={styles.errorText}>{error}</Text>}
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
           <Button
             title="Entrar"
@@ -72,17 +75,18 @@ export default function LoginScreen() {
             loading={isLoading}
             fullWidth
             size="lg"
-            style={styles.loginButton}
           />
         </Card>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Não tem conta? </Text>
-          <TouchableOpacity onPress={() => router.push('/(auth)/community-selection')}>
-            <Text style={styles.link}>Cadastre-se</Text>
-          </TouchableOpacity>
+          <Link href="/(auth)/community-selection" asChild>
+            <TouchableOpacity>
+              <Text style={styles.link}>Cadastre-se</Text>
+            </TouchableOpacity>
+          </Link>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -90,54 +94,50 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F8FA',
+    backgroundColor: colors.background,
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    justifyContent: 'center',
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.md,
+    justifyContent: 'space-between',
   },
   header: {
-    marginBottom: 32,
+    marginBottom: spacing.lg,
     alignItems: 'center',
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1E3A5F',
-    marginBottom: 8,
+    ...typography.displaySmall,
+    color: colors.portaNavy,
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: 15,
-    color: '#6C7A8A',
+    ...typography.bodyMedium,
+    color: colors.mutedSlate,
   },
   formCard: {
-    width: '100%',
-  },
-  input: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   errorText: {
-    marginBottom: 16,
+    ...typography.bodySmall,
+    color: colors.error,
     textAlign: 'center',
-  },
-  loginButton: {
-    marginTop: 8,
+    marginBottom: spacing.sm,
   },
   footer: {
-    marginTop: 24,
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 4,
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   footerText: {
-    fontSize: 15,
-    color: '#6C7A8A',
+    ...typography.bodyMedium,
+    color: colors.mutedSlate,
   },
   link: {
-    fontSize: 15,
-    color: '#1E3A5F',
-    fontWeight: '600',
+    ...typography.bodyMedium,
+    color: colors.portaNavy,
+    fontWeight: '600' as const,
   },
 });

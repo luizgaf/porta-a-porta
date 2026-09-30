@@ -97,6 +97,8 @@ Every entity belongs to a `condominio_id`. The JWT token carries this ID, and al
 
 ### Backend Setup
 
+#### Option A: Local Development (with local PostgreSQL)
+
 ```bash
 cd backend
 
@@ -121,6 +123,70 @@ npm run dev
 ```
 
 Server runs on `http://localhost:3333`
+
+#### Option B: Docker (PostgreSQL only)
+
+Run PostgreSQL in Docker while developing locally:
+
+```bash
+# From project root
+cd container
+docker compose up -d postgres
+```
+
+This starts PostgreSQL on `localhost:5432` with:
+- Database: `porta_a_porta`
+- User: `porta_a_porta`
+- Password: `porta_a_porta_dev`
+
+Update your backend `.env`:
+```env
+DATABASE_URL="postgresql://porta_a_porta:porta_a_porta_dev@localhost:5432/porta_a_porta?schema=public"
+```
+
+Then run backend locally:
+```bash
+cd backend
+npm run dev
+```
+
+#### Option C: Full Stack with Docker (One-Command Startup)
+
+Use the provided startup script that orchestrates everything:
+
+```bash
+# From project root - make executable if needed
+chmod +x run-project.sh
+./run-project.sh
+```
+
+This script:
+1. ✅ Verifies Docker is running
+2. ✅ Starts PostgreSQL container (`docker/docker-compose.yml` via `docker/run.sh`)
+3. ✅ Waits for PostgreSQL health check
+4. ✅ Runs Prisma migrations
+5. ✅ Starts Backend on port 3333
+6. ✅ Starts Frontend (Expo) on port 8081
+7. ✅ Verifies full stack connectivity
+
+**Services after startup:**
+- PostgreSQL: `localhost:5432`
+- Backend API: `http://localhost:3333`
+- Frontend (Expo): `http://localhost:8081`
+
+**To stop everything:**
+```bash
+# Stop backend & frontend
+kill $(cat /tmp/backend.pid) 2>/dev/null || true
+kill $(cat /tmp/frontend.pid) 2>/dev/null || true
+
+# Stop PostgreSQL
+cd container && docker compose down
+```
+
+**Logs:**
+- Backend: `/tmp/backend.log`
+- Frontend: `/tmp/frontend.log`
 
 ### Frontend Setup
 

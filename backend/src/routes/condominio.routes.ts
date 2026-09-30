@@ -7,6 +7,20 @@ import { authMiddleware, AuthRequest, requireRole } from '../middleware/auth';
 const router = Router();
 const prisma = new PrismaClient();
 
+// GET /api/condominios - Listar condomínios (público, para cadastro)
+router.get('/', asyncHandler(async (req: Request, res: Response) => {
+  const condominios = await prisma.condominio.findMany({
+    select: {
+      id: true,
+      nome: true,
+      endereco: true,
+    },
+    orderBy: { nome: 'asc' },
+  });
+
+  res.json({ condominios });
+}));
+
 const createCondominioSchema = z.object({
   nome: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   endereco: z.string().min(5, 'Endereço deve ter pelo menos 5 caracteres'),

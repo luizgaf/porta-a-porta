@@ -44,7 +44,7 @@ export default function AboutScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.logoSection}>
           <Image
-            source={require('../../../assets/icon.png')}
+            source={require('../../assets/icon.png')}
             style={styles.logo}
             resizeMode="contain"
           />

@@ -1,34 +1,38 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Link, useRouter } from 'expo-router';
-import { Button, Card } from '../../components/ui';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useRouter } from 'expo-router';
+import { colors, spacing, typography, borderRadius, layout } from '../../constants/design';
+
+const roles = [
+  {
+    id: 'COMPRADOR',
+    label: 'Comprador',
+    description: 'Quero comprar dos vizinhos',
+    icon: '🛒',
+    color: colors.portaNavy,
+  },
+  {
+    id: 'VENDEDOR',
+    label: 'Vendedor',
+    description: 'Quero vender meus produtos',
+    icon: '🏪',
+    color: colors.warmTerracotta,
+  },
+];
 
 export default function RoleSelectionScreen() {
   const router = useRouter();
-
-  const roles = [
-    {
-      id: 'COMPRADOR',
-      label: 'Comprador',
-      description: 'Quero comprar dos vizinhos',
-      icon: '🛒',
-      color: '#1E3A5F',
-    },
-    {
-      id: 'VENDEDOR',
-      label: 'Vendedor',
-      description: 'Quero vender meus produtos',
-      icon: '🏪',
-      color: '#28A745',
-    },
-  ];
 
   const handleSelectRole = (roleId: string) => {
     router.push(`/(auth)/community-selection?role=${roleId}`);
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>Como você vai usar o app?</Text>
@@ -44,80 +48,89 @@ export default function RoleSelectionScreen() {
               activeOpacity={0.8}
             >
               <Text style={styles.optionIcon}>{role.icon}</Text>
-              <Text style={[styles.optionLabel, { color: role.color }]}>{role.label}</Text>
-              <Text style={styles.optionDescription}>{role.description}</Text>
+              <View style={styles.optionTextGroup}>
+                <Text style={[styles.optionLabel, { color: role.color }]}>{role.label}</Text>
+                <Text style={styles.optionDescription}>{role.description}</Text>
+              </View>
             </TouchableOpacity>
           ))}
         </View>
       </View>
 
-      <View style={styles.bottom}>
+      <View style={styles.footer}>
         <Text style={styles.footerText}>
           Ao continuar, você concorda com nossos Termos de Uso e Política de Privacidade
         </Text>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F8FA',
+    backgroundColor: colors.background,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.md,
+    justifyContent: 'space-between',
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    justifyContent: 'center',
   },
   header: {
-    marginBottom: 40,
+    marginBottom: spacing.lg,
     alignItems: 'center',
   },
   title: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#1E3A5F',
+    ...typography.displaySmall,
+    color: colors.portaNavy,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: 15,
-    color: '#6C7A8A',
+    ...typography.bodyMedium,
+    color: colors.mutedSlate,
     textAlign: 'center',
   },
   options: {
-    gap: 16,
+    gap: spacing.md,
   },
   optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#FFFFFF',
+    gap: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
     borderWidth: 2,
-    borderRadius: 16,
-    gap: 16,
+    borderStyle: 'solid',
+    borderRadius: borderRadius.lg,
+    elevation: 1,
   },
   optionIcon: {
     fontSize: 36,
   },
+  optionTextGroup: {
+    flex: 1,
+  },
   optionLabel: {
-    fontSize: 20,
-    fontWeight: '700',
+    ...typography.bodyLarge,
+    fontWeight: '700' as const,
   },
   optionDescription: {
-    fontSize: 14,
-    color: '#6C7A8A',
-    marginTop: 2,
+    ...typography.bodySmall,
+    color: colors.mutedSlate,
+    marginTop: spacing.xs,
   },
-  bottom: {
-    paddingHorizontal: 24,
-    paddingBottom: 40,
+  footer: {
+    paddingBottom: spacing.sm,
   },
   footerText: {
-    fontSize: 12,
-    color: '#9AA8B8',
+    ...typography.bodySmall,
+    color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 18,
   },

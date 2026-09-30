@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
 import { Input, Button, Card } from '../../components/ui';
 import { api } from '../../utils/api';
 import { TipoUsuario } from '../../types';
+import { colors, spacing, typography, borderRadius, layout } from '../../constants/design';
 
 interface Condominio {
   id: string;
@@ -29,6 +30,8 @@ export default function CommunitySelectionScreen() {
   const [error, setError] = useState('');
   const [loadingCondominios, setLoadingCondominios] = useState(true);
   const [showForm, setShowForm] = useState(false);
+
+  const roleId = (role as TipoUsuario) || 'COMPRADOR';
 
   useEffect(() => {
     fetchCondominios();
@@ -55,28 +58,18 @@ export default function CommunitySelectionScreen() {
   };
 
   const handleRegister = async () => {
-    if (!selectedCondominio || !nome || !cpf || !email || !senha || !confirmarSenha || !unidade) {
+    if (!selectedCondominio || !nome || !email || !senha || !unidade) {
       setError('Preencha todos os campos');
       return;
     }
-
-    if (cpf.length !== 11) {
-      setError('CPF deve ter 11 dígitos');
-      return;
-    }
-
     if (senha !== confirmarSenha) {
-      setError('As senhas não coincidem');
+      setError('Senhas não conferem');
       return;
     }
-
-    if (senha.length < 6) {
-      setError('Senha deve ter pelo menos 6 caracteres');
+    if (formatCPF(cpf).length !== 11) {
+      setError('CPF inválido');
       return;
     }
-
-    const tipo = (role as TipoUsuario) || 'COMPRADOR';
-
     setError('');
     try {
       await register({
@@ -86,7 +79,7 @@ export default function CommunitySelectionScreen() {
         email,
         senha,
         unidade,
-        tipo,
+        tipo: roleId,
       });
       router.replace('/(tabs)/home');
     } catch (err: any) {
@@ -97,7 +90,7 @@ export default function CommunitySelectionScreen() {
   if (loadingCondominios) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1E3A5F" />
+        <ActivityIndicator size="large" color={colors.portaNavy} />
         <Text style={styles.loadingText}>Carregando condomínios...</Text>
       </View>
     );
@@ -108,7 +101,11 @@ export default function CommunitySelectionScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.content}>
           <View style={styles.header}>
             <Text style={styles.title}>
@@ -123,59 +120,47 @@ export default function CommunitySelectionScreen() {
 
           {!showForm && (
             <Card style={styles.formCard}>
-              <Input
-                label="Buscar Condomínio"
-                placeholder="Digite o nome ou ID"
-                onChangeText={(text) => {
-                  // Filtro local simples
-                }}
-                style={styles.input}
-              />
+              <View style={styles.condominioList}>
+                {condominios.map((cond) => (
+                  <TouchableOpacity
+                    key={cond.id}
+                    style={styles.condominioItem}
+                    onPress={() => handleSelectCondominio(cond.id)}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.condominioInfo}>
+                      <Text style={styles.condominioName}>{cond.nome}</Text>
+                      <Text style={styles.condominioAddress}>{cond.endereco}</Text>
+                    </View>
+                    <Text style={styles.chevron}>›</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-              {condominios.length === 0 ? (
-                <View style={styles.manualEntry}>
-                  <Text style={styles.manualText}>Condomínio não encontrado?</Text>
-                  <Input
-                    label="ID do Condomínio"
-                    placeholder="Fornecido pelo síndico"
-                    value={selectedCondominio}
-                    onChangeText={setSelectedCondominio}
-                    autoCapitalize="none"
-                    style={styles.input}
-                  />
-                  <Button
-                    title="Continuar com ID Manual"
-                    onPress={() => selectedCondominio && setShowForm(true)}
-                    disabled={!selectedCondominio}
-                    fullWidth
-                    variant="outline"
-                    style={styles.manualButton}
-                  />
-                </View>
-              ) : (
-                <View style={styles.condominioList}>
-                  {condominios.map((cond) => (
-                    <TouchableOpacity
-                      key={cond.id}
-                      style={styles.condominioItem}
-                      onPress={() => handleSelectCondominio(cond.id)}
-                    >
-                      <View style={styles.condominioInfo}>
-                        <Text style={styles.condominioName}>{cond.nome}</Text>
-                        <Text style={styles.condominioAddress}>{cond.endereco}</Text>
-                      </View>
-                      <Text style={styles.chevron}>›</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
+              <View style={styles.manualEntry}>
+                <Text style={styles.manualText}>Condomínio não encontrado?</Text>
+                <Input
+                  label="ID do Condomínio"
+                  placeholder="Fornecido pelo síndico"
+                  value={selectedCondominio}
+                  onChangeText={setSelectedCondominio}
+                  autoCapitalize="none"
+                />
+                <Button
+                  title="Continuar com ID Manual"
+                  onPress={() => selectedCondominio && setShowForm(true)}
+                  disabled={!selectedCondominio}
+                  fullWidth
+                  variant="outline"
+                />
+              </View>
             </Card>
           )}
 
           {showForm && (
             <Card style={styles.formCard}>
               <Text style={styles.selectedCondominio}>
-                Condomínio: {condominios.find(c => c.id === selectedCondominio)?.nome || 'ID Manual'}
+                Condomínio: {condominios.find((c) => c.id === selectedCondominio)?.nome || 'ID Manual'}
               </Text>
 
               <Input
@@ -184,7 +169,6 @@ export default function CommunitySelectionScreen() {
                 value={nome}
                 onChangeText={setNome}
                 autoCapitalize="words"
-                style={styles.input}
               />
 
               <Input
@@ -194,7 +178,6 @@ export default function CommunitySelectionScreen() {
                 onChangeText={(v) => setCpf(formatCPF(v))}
                 keyboardType="number-pad"
                 maxLength={14}
-                style={styles.input}
               />
 
               <Input
@@ -205,7 +188,6 @@ export default function CommunitySelectionScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
-                style={styles.input}
               />
 
               <Input
@@ -214,7 +196,6 @@ export default function CommunitySelectionScreen() {
                 value={unidade}
                 onChangeText={setUnidade}
                 autoCapitalize="words"
-                style={styles.input}
               />
 
               <Input
@@ -224,7 +205,6 @@ export default function CommunitySelectionScreen() {
                 onChangeText={setSenha}
                 secureTextEntry
                 autoComplete="new-password"
-                style={styles.input}
               />
 
               <Input
@@ -234,10 +214,9 @@ export default function CommunitySelectionScreen() {
                 onChangeText={setConfirmarSenha}
                 secureTextEntry
                 autoComplete="new-password"
-                style={styles.input}
               />
 
-              {error && <Text style={styles.errorText}>{error}</Text>}
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
               <View style={styles.buttonGroup}>
                 <Button
@@ -266,63 +245,53 @@ export default function CommunitySelectionScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F8FA',
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 16,
+    gap: spacing.md,
   },
   loadingText: {
-    fontSize: 16,
-    color: '#6C7A8A',
+    ...typography.bodyMedium,
+    color: colors.mutedSlate,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 40,
+    paddingHorizontal: layout.screenPadding,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.md,
+    justifyContent: 'space-between',
   },
   content: {
     width: '100%',
   },
   header: {
-    marginBottom: 24,
+    marginBottom: spacing.lg,
     alignItems: 'center',
   },
   title: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#1E3A5F',
+    ...typography.displaySmall,
+    color: colors.portaNavy,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: 15,
-    color: '#6C7A8A',
+    ...typography.bodyMedium,
+    color: colors.mutedSlate,
     textAlign: 'center',
   },
   formCard: {
-    width: '100%',
-  },
-  input: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   manualEntry: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E8EFF5',
-    alignItems: 'center',
-    gap: 12,
+    marginTop: spacing.md,
+    gap: spacing.sm,
   },
   manualText: {
-    fontSize: 14,
-    color: '#6C7A8A',
-  },
-  manualButton: {
-    width: '100%',
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
   },
   condominioList: {
     maxHeight: 300,
@@ -331,46 +300,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    marginBottom: 8,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.xs,
     borderWidth: 1,
-    borderColor: '#E8EFF5',
+    borderColor: colors.border,
   },
   condominioInfo: {
     flex: 1,
   },
   condominioName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E3A5F',
+    ...typography.bodyMedium,
+    fontWeight: '600' as const,
+    color: colors.textPrimary,
   },
   condominioAddress: {
-    fontSize: 13,
-    color: '#6C7A8A',
-    marginTop: 2,
+    ...typography.bodySmall,
+    color: colors.mutedSlate,
+    marginTop: spacing.xs,
   },
   chevron: {
     fontSize: 20,
-    color: '#9AA8B8',
+    color: colors.textMuted,
   },
   selectedCondominio: {
-    fontSize: 14,
-    color: '#1E3A5F',
-    fontWeight: '500',
-    marginBottom: 16,
-    paddingBottom: 16,
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+    fontWeight: '500' as const,
+    marginBottom: spacing.md,
+    paddingBottom: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8EFF5',
+    borderBottomColor: colors.border,
   },
   errorText: {
-    marginBottom: 16,
+    ...typography.bodySmall,
+    color: colors.error,
     textAlign: 'center',
+    marginBottom: spacing.sm,
   },
   buttonGroup: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
+    gap: spacing.sm,
+    marginTop: spacing.xs,
   },
 });

@@ -1,12 +1,10 @@
-export const API_BASE_URL = __DEV__
-  ? 'http://192.168.1.100:3000/api'
-  : 'https://api.porta-a-porta.com/api';
+import Constants from 'expo-constants';
 
-export const STORAGE_KEYS = {
-  TOKEN: '@porta_a_porta:token',
-  USER: '@porta_a_porta:user',
-  CONDOMINIO_ID: '@porta_a_porta:condominio_id',
-} as const;
+const extra = Constants.expoConfig?.extra as { apiBaseUrl?: string } | undefined;
+
+export const API_BASE_URL = __DEV__
+  ? (extra?.apiBaseUrl ?? 'http://localhost:3000/api')
+  : 'https://api.porta-a-porta.com/api';
 
 export type TipoUsuario = 'COMPRADOR' | 'VENDEDOR' | 'SINDICO';
 export type TipoEntrega = 'PORTARIA' | 'UNIDADE' | 'COMBINAR';

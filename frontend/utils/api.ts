@@ -1,7 +1,11 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
-import * as SecureStore from 'expo-secure-store';
-import { API_BASE_URL, STORAGE_KEYS } from '../constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '../constants';
 import { ApiError } from '../types';
+
+const TOKEN_KEY = 'token_ki_auth';
+const USER_KEY = 'token_ki_user';
+const CONDOMINIO_ID_KEY = 'token_ki_condominioId';
 
 class ApiClient {
   private client: AxiosInstance;
@@ -22,7 +26,7 @@ class ApiClient {
     // Request interceptor - adiciona token JWT
     this.client.interceptors.request.use(
       async (config: InternalAxiosRequestConfig) => {
-        const token = await SecureStore.getItemAsync(STORAGE_KEYS.TOKEN);
+        const token = await AsyncStorage.getItem(TOKEN_KEY);
         if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -63,9 +67,9 @@ class ApiClient {
   }
 
   private async clearAuth() {
-    await SecureStore.deleteItemAsync(STORAGE_KEYS.TOKEN);
-    await SecureStore.deleteItemAsync(STORAGE_KEYS.USER);
-    await SecureStore.deleteItemAsync(STORAGE_KEYS.CONDOMINIO_ID);
+    await AsyncStorage.removeItem(TOKEN_KEY);
+    await AsyncStorage.removeItem(USER_KEY);
+    await AsyncStorage.removeItem(CONDOMINIO_ID_KEY);
   }
 
   // Métodos HTTP
@@ -96,7 +100,17 @@ class ApiClient {
 
   // Setar token manualmente (após login)
   async setToken(token: string) {
-    await SecureStore.setItemAsync(STORAGE_KEYS.TOKEN, token);
+    await AsyncStorage.setItem(TOKEN_KEY, token);
+  }
+
+  // Setar usuario completo (após login)
+  async setUser(user: any) {
+    await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
+  }
+
+  // Setar condominio_id
+  async setCondominioId(condominioId: string) {
+    await AsyncStorage.setItem(CONDOMINIO_ID_KEY, condominioId);
   }
 
   // Remover token (logout)

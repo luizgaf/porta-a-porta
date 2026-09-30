@@ -1,17 +1,22 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
-import { Link, useRouter } from 'expo-router';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Button } from '../../components/ui';
+import { colors, spacing, typography, layout, borderRadius } from '../../constants/design';
 
 export default function WelcomeScreen() {
   const router = useRouter();
 
   const handleGetStarted = () => {
-    router.push('/(auth)/community-selection');
+    router.push('/(auth)/role-selection');
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.content}>
         <View style={styles.logoContainer}>
           <Image
@@ -22,8 +27,9 @@ export default function WelcomeScreen() {
         </View>
         <Text style={styles.title}>Porta a Porta</Text>
         <Text style={styles.subtitle}>
-          Comércio interno do seu condomínio,\norganizado e seguro.
+          Comércio interno do seu condomínio, organizado e seguro.
         </Text>
+
         <View style={styles.features}>
           <View style={styles.feature}>
             <Text style={styles.featureIcon}>🛍️</Text>
@@ -39,76 +45,108 @@ export default function WelcomeScreen() {
           </View>
         </View>
       </View>
+
       <View style={styles.bottom}>
-        <Button title="Começar" onPress={handleGetStarted} size="lg" fullWidth />
-        <Text style={styles.footerText}>
+        <Button
+          title="Criar Conta"
+          onPress={handleGetStarted}
+          size="lg"
+          fullWidth
+        />
+        <View style={styles.loginRow}>
+          <Text style={styles.footerText}>Já tem conta? </Text>
+          <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
+            <Text style={styles.link}>Entrar</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.termsText}>
           Ao continuar, você concorda com nossos Termos de Uso e Política de Privacidade
         </Text>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F8FA',
+    backgroundColor: colors.background,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'space-between',
+    paddingHorizontal: layout.screenPadding,
+    paddingBottom: spacing.md,
   },
   content: {
-    flex: 1,
-    paddingHorizontal: 32,
-    paddingTop: 60,
-    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: spacing.xl,
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.lg,
   },
   logo: {
     width: 100,
     height: 100,
   },
   title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#1E3A5F',
+    ...typography.displaySmall,
+    color: colors.portaNavy,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#6C7A8A',
+    ...typography.bodyMedium,
+    color: colors.mutedSlate,
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 40,
   },
   features: {
-    gap: 16,
-    marginBottom: 40,
+    width: '100%',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
   },
   feature: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: borderRadius.md,
   },
   featureIcon: {
     fontSize: 24,
   },
   featureText: {
-    fontSize: 15,
-    color: '#3D4A5A',
-    fontWeight: '500',
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
   },
   bottom: {
-    paddingHorizontal: 32,
-    paddingBottom: 40,
-    gap: 12,
+    gap: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  loginRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   footerText: {
-    fontSize: 12,
-    color: '#9AA8B8',
+    ...typography.bodyMedium,
+    color: colors.mutedSlate,
+  },
+  link: {
+    ...typography.bodyMedium,
+    color: colors.portaNavy,
+    fontWeight: '600' as const,
+  },
+  termsText: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 18,
+    marginTop: spacing.sm,
   },
 });

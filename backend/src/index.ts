@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import morgan from 'morgan';
 import { PrismaClient } from '@prisma/client';
 import { errorHandler } from './middleware/errorHandler';
 import { authMiddleware } from './middleware/auth';
@@ -13,8 +14,37 @@ const PORT = process.env.PORT || 3000;
 
 // Middlewares globais
 app.use(helmet());
+
+// Request logging (real-time HTTP log)
+const logFormat = process.env.NODE_ENV === 'production'
+  ? 'combined'
+  : 'dev';
+app.use(morgan(logFormat));
+
+// CORS configuration - permite localhost, LAN IPs e produção
+const allowedOrigins: string[] = [
+  'http://localhost:8081',
+  'http://127.0.0.1:8081',
+  process.env.FRONTEND_URL,
+  'https://api.porta-a-porta.com', // placeholder for production
+].filter(Boolean) as string[];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:8081',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+
+    // Allow any localhost/127.0.0.1 or LAN IP on port 8081
+    const originStr: string = origin;
+    const isAllowedOrigin = allowedOrigins.some(o => originStr.startsWith(o)) ||
+      /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+):8081$/.test(originStr);
+
+    if (isAllowedOrigin) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 app.use(express.json());

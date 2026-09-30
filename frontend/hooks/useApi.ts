@@ -21,6 +21,10 @@ export const useApi = () => {
       credentials
     );
     await api.setToken(response.token);
+    await api.setUser(response.usuario);
+    if (response.usuario.condominioId) {
+      await api.setCondominioId(response.usuario.condominioId);
+    }
     return response;
   }, []);
 
@@ -30,6 +34,10 @@ export const useApi = () => {
       data
     );
     await api.setToken(response.token);
+    await api.setUser(response.usuario);
+    if (response.usuario.condominioId) {
+      await api.setCondominioId(response.usuario.condominioId);
+    }
     return response;
   }, []);
 
@@ -40,6 +48,10 @@ export const useApi = () => {
 
   const getMe = useCallback(async () => {
     return api.get<{ usuario: any }>('/auth/me');
+  }, []);
+
+  const updateUsuario = useCallback(async (data: { nome?: string; unidade?: string; pushToken?: string }) => {
+    return api.put<{ usuario: any }>('/usuarios/me', data);
   }, []);
 
   // Produtos
@@ -161,6 +173,7 @@ export const useApi = () => {
     register,
     logout: logoutApi,
     getMe,
+    updateUsuario,
 
     // Produtos
     getProdutos,
