@@ -597,6 +597,26 @@ cd frontend && npm install -D jest @testing-library/react-native detox
 
 ---
 
+## Test Accounts
+
+Run the seed script to populate the database with test users:
+
+```bash
+cd backend && npm run prisma:seed
+```
+
+**Pre-seeded accounts:**
+
+| Role | Email | Password | Condomínio | Unit |
+|------|-------|----------|------------|------|
+| Síndico | `sindico1@porta-a-porta.com` | `sindico123` | Condomínio Porta a Porta 1 | Sala 1 |
+| Comprador | `comprador1@porta-a-porta.com` | `comprador123` | Condomínio Porta a Porta 1 | Apto 101 |
+| Vendedor | `vendedor1@porta-a-porta.com` | `vendedor123` | Condomínio Porta a Porta 1 | Apto 202 |
+
+> Síndico accounts exist for all 10 condomínios (`sindico1@...` through `sindico10@...`).
+
+---
+
 ## Troubleshooting
 
 ### "Cannot find module '@/constants/design'"
