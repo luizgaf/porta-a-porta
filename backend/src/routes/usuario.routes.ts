@@ -10,7 +10,6 @@ const prisma = new PrismaClient();
 const updateUsuarioSchema = z.object({
   nome: z.string().min(2).optional(),
   unidade: z.string().min(1).optional(),
-  pushToken: z.string().optional(),
 });
 
 // GET /api/usuarios/me - Perfil do usuário logado
@@ -24,7 +23,6 @@ router.get('/me', authMiddleware, asyncHandler(async (req: AuthRequest, res: Res
       email: true,
       unidade: true,
       tipo: true,
-      pushToken: true,
       criadoEm: true,
     },
   });
@@ -41,7 +39,6 @@ router.put('/me', authMiddleware, asyncHandler(async (req: AuthRequest, res: Res
     data: {
       nome: data.nome,
       unidade: data.unidade,
-      pushToken: data.pushToken,
     },
     select: {
       id: true,
@@ -50,7 +47,6 @@ router.put('/me', authMiddleware, asyncHandler(async (req: AuthRequest, res: Res
       email: true,
       unidade: true,
       tipo: true,
-      pushToken: true,
       criadoEm: true,
     },
   });

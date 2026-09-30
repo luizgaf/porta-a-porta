@@ -65,28 +65,26 @@ export default function TabsLayout() {
           ),
         }}
       />
-      {isVendedor && (
-        <Tabs.Screen
-          name="seller"
-          options={{
-            title: 'Vendedor',
-            tabBarIcon: ({ focused }) => (
-              <Ionicons name={focused ? 'storefront' : 'storefront-outline'} size={24} color={focused ? '#1E3A5F' : '#6C7A8A'} />
-            ),
-          }}
-        />
-      )}
-      {isSindico && (
-        <Tabs.Screen
-          name="moderator"
-          options={{
-            title: 'Moderação',
-            tabBarIcon: ({ focused }) => (
-              <Ionicons name={focused ? 'shield' : 'shield-outline'} size={24} color={focused ? '#1E3A5F' : '#6C7A8A'} />
-            ),
-          }}
-        />
-      )}
+      <Tabs.Screen
+        name="seller"
+        options={{
+          href: isVendedor ? undefined : null,
+          title: 'Vendedor',
+          tabBarIcon: ({ focused }) => (
+            <Ionicons name={focused ? 'storefront' : 'storefront-outline'} size={24} color={focused ? '#1E3A5F' : '#6C7A8A'} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="moderator"
+        options={{
+          href: isSindico ? undefined : null,
+          title: 'Moderação',
+          tabBarIcon: ({ focused }) => (
+            <Ionicons name={focused ? 'shield' : 'shield-outline'} size={24} color={focused ? '#1E3A5F' : '#6C7A8A'} />
+          ),
+        }}
+      />
       <Tabs.Screen
         name="profile"
         options={{

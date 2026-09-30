@@ -155,7 +155,6 @@ router.get('/me', asyncHandler(async (req: Request, res: Response) => {
       email: true,
       unidade: true,
       tipo: true,
-      pushToken: true,
       criadoEm: true,
     },
   });
