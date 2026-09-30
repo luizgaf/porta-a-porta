@@ -15,7 +15,6 @@ const features: Feature[] = [
   { icon: 'cart-outline', title: 'Carrinho e Pedidos', desc: 'Compra simples com entrega agendada' },
   { icon: 'shield-outline', title: 'Moderação do Síndico', desc: 'Denúncias, quarentena e auditoria' },
   { icon: 'star-outline', title: 'Sistema de Avaliações', desc: 'Confiança baseada em experiências reais' },
-  { icon: 'notifications-outline', title: 'Notificações Push', desc: 'Acompanhe status dos pedidos em tempo real' },
   { icon: 'person-outline', title: 'Perfil por Unidade', desc: 'Identificação vinculada ao apartamento/bloco' },
 ];
 

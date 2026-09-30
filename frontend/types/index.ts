@@ -13,7 +13,6 @@ export interface Usuario {
   email: string;
   unidade: string;
   tipo: TipoUsuario;
-  pushToken?: string;
   criadoEm: string;
 }
 

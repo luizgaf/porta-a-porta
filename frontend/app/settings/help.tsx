@@ -28,10 +28,6 @@ export default function HelpScreen() {
       q: 'Como funciona o limite de 15 produtos?',
       a: 'Cada vendedor pode ter no máximo 15 produtos com status "Ativo" simultaneamente. Pause ou exclua produtos para criar novos.',
     },
-    {
-      q: 'Não recebo notificações. O que fazer?',
-      a: 'Verifique em Configurações > Notificações se as notificações push estão ativadas. Também cheque as configurações do sistema do seu celular para o app Porta a Porta.',
-    },
   ];
 
   return (

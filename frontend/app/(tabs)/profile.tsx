@@ -238,12 +238,6 @@ export default function ProfileScreen() {
       <View style={styles.sectionContainer}>
         <Text style={styles.sectionTitle}>Configurações</Text>
         <Card style={styles.settingsCard}>
-          <TouchableOpacity style={styles.settingItem} onPress={() => router.push('/settings/notifications')}>
-            <Ionicons name="notifications-outline" size={22} color="#1E3A5F" style={styles.settingIcon} />
-            <Text style={styles.settingText}>Notificações Push</Text>
-            <Ionicons name="chevron-forward" size={20} color="#9AA8B8" />
-          </TouchableOpacity>
-          <View style={styles.divider} />
           <TouchableOpacity style={styles.settingItem} onPress={() => router.push('/settings/privacy')}>
             <Ionicons name="shield-outline" size={22} color="#1E3A5F" style={styles.settingIcon} />
             <Text style={styles.settingText}>Privacidade e Segurança</Text>
