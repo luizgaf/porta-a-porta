@@ -1,0 +1,44 @@
+import { ConfigContext, ExpoConfig } from 'expo/config';
+
+export default ({ config }: ConfigContext): ExpoConfig => ({
+  ...config,
+  name: 'Porta a Porta',
+  slug: 'porta-a-porta',
+  version: '1.0.0',
+  orientation: 'portrait',
+  icon: './assets/icon.png',
+  userInterfaceStyle: 'light',
+  splash: {
+    image: './assets/splash-icon.png',
+    resizeMode: 'contain',
+    backgroundColor: '#1E3A5F',
+  },
+  ios: {
+    supportsTablet: true,
+    bundleIdentifier: 'com.porta.porta',
+  },
+  android: {
+    adaptiveIcon: {
+      backgroundColor: '#1E3A5F',
+      foregroundImage: './assets/android-icon-foreground.png',
+      backgroundImage: './assets/android-icon-background.png',
+      monochromeImage: './assets/android-icon-monochrome.png',
+    },
+    package: 'com.porta.porta',
+    predictiveBackGestureEnabled: false,
+  },
+  web: {
+    favicon: './assets/favicon.png',
+  },
+  plugins: ['expo-router'],
+  scheme: 'porta',
+  extra: {
+    router: {
+      origin: false,
+    },
+    eas: {
+      projectId: 'porta-a-porta',
+    },
+    apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000/api',
+  },
+} as any);
