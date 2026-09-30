@@ -15,7 +15,6 @@ export interface AuthRequest extends Request {
     email: string;
     unidade: string;
     tipo: TipoUsuario;
-    pushToken?: string | null;
   };
 }
 
@@ -57,7 +56,6 @@ export const authMiddleware = async (
         email: true,
         unidade: true,
         tipo: true,
-        pushToken: true,
       },
     });
 

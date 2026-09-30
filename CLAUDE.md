@@ -21,7 +21,7 @@ Sistema móvel para organizar comércio interno em condomínios residenciais. Vi
 ### Estrutura do Banco (schema.prisma)
 ```
 Condominio (id, nome, endereco, criado_em)
-Usuario (id, condominio_id, nome, cpf, email, senha_hash, unidade, tipo, push_token)
+Usuario (id, condominio_id, nome, cpf, email, senha_hash, unidade, tipo)
 Produto (id, condominio_id, vendedor_id, nome, descricao, preco, categoria, status)
 Pedido (id, condominio_id, comprador_id, unidade_entrega, tipo_entrega, janela_horario, status, valor_total)
 ItemPedido (id, pedido_id, produto_id, quantidade, preco_unitario)
@@ -136,7 +136,6 @@ frontend/
 │   ├── order/
 │   │   └── [id].tsx                # Detalhe do pedido + timeline
 │   └── settings/
-│       ├── notifications.tsx
 │       ├── privacy.tsx
 │       ├── help.tsx
 │       └── about.tsx
@@ -206,101 +205,10 @@ npm run lint         # ESLint
 
 ---
 
-## Notificações Push (Task 9 — Implementado)
-
-### Arquitetura do Sistema
-```
-Evento no Backend → notificationService.ts → Expo Server SDK → Expo Push Service → Dispositivo
-                 ↑                              ↑
-          pedido.routes.ts           expo-server-sdk (npm)
-                 ↑                              ↑
-         notificacao.routes.ts      ExpoPushMessage[] (chunked em 100)
-
-Frontend Hook ←→ Device Token ←→ Expo Notifications ←→ API /usuarios/me
-```
-
-### Backend
-
-#### `src/services/notificationService.ts`
-Serviço central de envio de notificações push usando `expo-server-sdk`:
-
-- `notificationMessages` — templates para `newOrder`, `orderStatusChanged`, `orderCancelled`
-- `getVendorTokens(pedidoId)` — SQL raw query que busca tokens de vendedores cujos produtos estão nos itens do pedido
-- `sendPushNotifications(tokens, title, body, data)` — valida tokens com `Expo.isExpoPushToken()`, chunka em grupos de 100, envia via `expo.sendPushNotificationsAsync()`
-- `notifyNewOrder(pedidoId, compradorNome, unidade, totalItens)` — notifica vendedores quando um novo pedido é criado
-- `notifyOrderStatusChanged(pedidoId, compradorId, newStatus)` — notifica o comprador quando o status do pedido muda
-
-#### `src/routes/notificacao.routes.ts`
-Dois endpoints SINDICO-only:
-
-- `POST /api/notificacoes/enviar` — envia notificação para um usuário específico (via `usuarioId`) ou para todos os usuários do condomínio. Usa zod schema para validação.
-- `POST /api/notificacoes/teste` — envia notificação de teste para o próprio dispositivo do síndico autenticado
-
-#### Fluxo no `src/routes/pedido.routes.ts`
-- Após criar pedido: `void notifyNewOrder(pedido.id, comprador.nome, comprador.unidade, totalItens).catch(...)` — fire-and-forget
-- Após atualizar status: `void notifyOrderStatusChanged(pedidoId, pedido.compradorId, newStatus).catch(...)`
-
-#### `src/middleware/auth.ts` (modificado)
-- Adicionado `pushToken?: string | null` à interface `AuthRequest.user`
-- Adicionado `pushToken: true` ao select do Prisma para incluir o token no objeto de usuário autenticado
-
-### Frontend
-
-#### `frontend/services/notificationService.ts`
-Configura o notification handler e gerencia permissões/tokens no dispositivo:
-
-- `requestUserPermission()` — solicita permissões de notificação via `Notifications.getPermissionsAsync()`
-- `registerForPushNotifications()` — obtém token via `Notifications.getExpoPushTokenAsync()`, salva via `PUT /usuarios/me`
-- `setupNotificationChannel()` — configura canal Android com ícone e cores
-- `getNotificationData(response)` — extrai dados da notificação para navegação (type, pedidoId)
-
-#### `frontend/hooks/usePushNotifications.ts`
-Hook que gerencia o ciclo de vida das notificações:
-
-- `register()` — chama `registerForPushNotifications()`, atualiza o Zustand store com `updateUsuario({ pushToken })`
-- `handleNotificationResponse()` — listener para toque na notificação, navega para `/order/:id` quando `pedidoId` está presente
-- Configura `Notifications.addNotificationResponseReceivedListener` no useEffect
-
-#### `frontend/hooks/useApi.ts` (modificado)
-- Adicionado `updateUsuario` — `useCallback` que faz `PUT /usuarios/me` para salvar o push token no backend
-
-#### `frontend/hooks/index.ts` (modificado)
-- Adicionado `export { usePushNotifications } from './usePushNotifications'`
-
-#### `frontend/components/Providers.tsx` (modificado)
-- Após autenticação bem-sucedida, chama `register()` do hook `usePushNotifications` se o usuário não tem push token
-
-#### `frontend/app/settings/notifications.tsx`
-Tela de configurações com:
-
-- Status do dispositivo (push token ativo/inativo)
-- Botão "Ativar Notificações" (registra token)
-- Toggles para tipos de notificação (pedidos, novos produtos, promoções, avaliações, denúncias, anúncios)
-- Horário silencioso (22:00–08:00)
-- Botão "Enviar Notificação de Teste"
-- Botão "Enviar Comunicado para Todos" (apenas SINDICO)
-
-### Fluxo Completo
-1. **Login/Registro** → `Providers.tsx` detecta usuário autenticado → chama `usePushNotifications.register()` → `registerForPushNotifications()` obtém token Expo → salva via `PUT /usuarios/me`
-2. **Novo Pedido** → `pedido.routes.ts` cria pedido → chama `notifyNewOrder()` → `getVendorTokens()` busca vendedores via SQL → `sendPushNotifications()` envia via Expo Server SDK → vendedores recebem notificação
-3. **Status atualizado** → `pedido.routes.ts` atualiza status → chama `notifyOrderStatusChanged()` → busca buyer token → envia notificação → buyer recebe atualização
-4. **Síndico envia comunicado** → `/notificacoes/enviar` → busca todos tokens do condomínio → envia notificação para todos
-5. **Usuário toca na notificação** → `usePushNotifications` listener captura → navega para `/order/:id`
-
-### Dependências
-**Backend** (`package.json`):
-- `expo-server-sdk` — SDK Expo para envio de push notifications do servidor
-
-**Frontend** (`package.json`):
-- `expo-notifications` — gerenciamento de notificações no dispositivo
-- `expo-device` — utilitários para verificar se é dispositivo físico
-
----
-
 ## Próximas Tasks Planejadas
 - ✅ **Task 8**: Frontend completo (Expo Router, telas, navegação, Zustand, Axios JWT)
 - ✅ **Design System**: Tokens, componentes atualizados (Button, Card, Input, Avatar), novos componentes (CategoryChip, DoorTag, ProductCard)
-- ✅ **Task 9**: Notificações Push (Expo Notifications)
+- [ ] **Task 9**: Notificações Push (Expo Notifications) — *deferred, requires dev client build*
 - [ ] Task 10: Testes E2E (Detox) + Unit (Jest)
 - [ ] Task 11: Deploy Backend (Docker + Railway/Render)
 - [ ] Task 12: Deploy Frontend (EAS Build + App Store/Play Store)

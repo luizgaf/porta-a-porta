@@ -7,7 +7,6 @@ import { pedidoRoutes } from './pedido.routes';
 import { denunciaRoutes } from './denuncia.routes';
 import { avaliacaoRoutes } from './avaliacao.routes';
 import { auditoriaRoutes } from './auditoria.routes';
-import { notificacaoRoutes } from './notificacao.routes';
 
 export const setupRoutes = (app: Application) => {
   // Rotas públicas
@@ -21,5 +20,4 @@ export const setupRoutes = (app: Application) => {
   app.use('/api/denuncias', denunciaRoutes);
   app.use('/api/avaliacoes', avaliacaoRoutes);
   app.use('/api/auditoria', auditoriaRoutes);
-  app.use('/api/notificacoes', notificacaoRoutes);
 };

@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { PrismaClient } from '@prisma/client';
 import { asyncHandler, AppError } from '../middleware/errorHandler';
 import { authMiddleware, AuthRequest, requireRole } from '../middleware/auth';
-import { notifyNewOrder, notifyOrderStatusChanged } from '../services/notificationService';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -98,14 +97,6 @@ router.post('/', authMiddleware, requireRole('COMPRADOR', 'SINDICO'), asyncHandl
       },
     },
   });
-
-  // Notifica vendedores sobre o novo pedido
-  void notifyNewOrder(
-    pedido.id,
-    req.user!.nome || 'Um cliente',
-    data.unidadeEntrega,
-    itensPedido.length
-  ).catch((err) => console.error('Erro ao notificar vendedores:', err));
 
   res.status(201).json({ pedido: pedidoCompleto });
 }));
@@ -257,11 +248,6 @@ router.patch('/:id/status', authMiddleware, asyncHandler(async (req: AuthRequest
       comprador: { select: { id: true, nome: true, unidade: true } },
     },
   });
-
-  // Notifica o comprador sobre a mudança de status
-  void notifyOrderStatusChanged(pedido.id, pedido.compradorId, status).catch((err) =>
-    console.error('Erro ao notificar comprador:', err)
-  );
 
   res.json({ pedido: updated });
 }));

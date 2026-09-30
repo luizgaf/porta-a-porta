@@ -1,6 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
+const senhaHash = async (senha: string) => bcrypt.hash(senha, 10);
+
 const prisma = new PrismaClient();
 
 async function main() {
@@ -98,13 +100,90 @@ async function main() {
     },
   });
 
+  // Produtos de teste para o vendedor1 no condomínio 1
+  const produtos = [
+    {
+      nome: 'Café Torrado Especia',
+      descricao: 'Café torrado especial 500g - sachê de papel',
+      preco: 18.5,
+      categoria: 'Bebidas',
+      status: 'ATIVO',
+      vendedorId: 0, // updated below
+      condominioId: condominios[0].id,
+    },
+    {
+      nome: 'Bolacha de Amendoim',
+      descricao: 'Bolacha amanteigada crocante 400g',
+      preco: 12.0,
+      categoria: 'Doces & Salgados',
+      status: 'ATIVO',
+      vendedorId: 0,
+      condominioId: condominios[0].id,
+    },
+    {
+      nome: 'Manteiga de Amendoim',
+      descricao: 'Manteiga de amendoim natural sem açúcar 300g',
+      preco: 22.0,
+      categoria: 'Produtos Naturais',
+      status: 'ATIVO',
+      vendedorId: 0,
+      condominioId: condominios[0].id,
+    },
+    {
+      nome: 'Leite Condensado',
+      descricao: 'Leite condensado 397g',
+      preco: 8.5,
+      categoria: 'Básicos',
+      status: 'PAUSADO',
+      vendedorId: 0,
+      condominioId: condominios[0].id,
+    },
+    {
+      nome: 'Açaí na Tigela',
+      descricao: 'Açaí 500ml na tigela com coberturas',
+      preco: 15.0,
+      categoria: 'Bebidas',
+      status: 'ATIVO',
+      vendedorId: 0,
+      condominioId: condominios[0].id,
+    },
+  ];
+
+  // Get vendedor1 ID
+  const vendedor = await prisma.usuario.findUnique({
+    where: { email: 'vendedor1@porta-a-porta.com' },
+  });
+
+  for (const produto of produtos) {
+    await prisma.produto.upsert({
+      where: { id: `seed-prod-${produto.nome}` },
+      update: {
+        nome: produto.nome,
+        descricao: produto.descricao,
+        preco: produto.preco,
+        categoria: produto.categoria,
+        status: produto.status,
+      },
+      create: {
+        id: `seed-prod-${produto.nome.toLowerCase().replace(/\s+/g, '-')}`,
+        nome: produto.nome,
+        descricao: produto.descricao,
+        preco: produto.preco,
+        categoria: produto.categoria,
+        status: produto.status,
+        vendedorId: vendedor!.id,
+        condominioId: produto.condominioId,
+      },
+    });
+  }
+
   console.log('✅ Seed concluído:');
   console.log(`   - ${condominios.length} condomínios criados`);
   console.log(`   - ${condominios.length} síndicos criados`);
   console.log('   - 1 comprador criado (comprador1@porta-a-porta.com / comprador123)');
-  console.log(
-    '   - 1 vendedor criado (vendedor1@porta-a-porta.com / vendedor123)'
-  );
+  console.log('   - 1 vendedor criado (vendedor1@porta-a-porta.com / vendedor123)');
+  console.log(`   - Síndico 1: sindico1@porta-a-porta.com / sindico123`);
+  console.log(`   - ${produtos.length} produtos criados`);
 }
 
 main()

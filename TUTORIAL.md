@@ -214,7 +214,7 @@ Scan QR code with Expo Go (mobile) or press `i` for iOS Simulator / `a` for Andr
 ```prisma
 // Core entities
 Condominio   { id, nome, endereco, criado_em }
-Usuario      { id, condominio_id, nome, cpf, email, senha_hash, unidade, tipo, push_token }
+Usuario      { id, condominio_id, nome, cpf, email, senha_hash, unidade, tipo }
 Produto      { id, condominio_id, vendedor_id, nome, descricao, preco, categoria, status }
 Pedido       { id, condominio_id, comprador_id, unidade_entrega, tipo_entrega, janela_horario, status, valor_total }
 ItemPedido   { id, pedido_id, produto_id, quantidade, preco_unitario }
@@ -291,7 +291,6 @@ app/
 ├── order/
 │   └── [id].tsx                   # Order detail + timeline + actions
 └── settings/
-    ├── notifications.tsx
     ├── privacy.tsx
     ├── help.tsx
     └── about.tsx
@@ -580,12 +579,6 @@ cd backend && npm run lint
 3. Frontend: Update `TipoUsuario` type, `isX` getters in `useAuth`
 4. Frontend: Conditional tabs in `app/(tabs)/_layout.tsx`
 
-### Adding Push Notifications (Task 9)
-
-1. Backend: Add `pushToken` to `Usuario`, create notification service
-2. Frontend: `expo-notifications` setup, request permissions on login
-3. Backend: Trigger on order status changes, new reports, new reviews
-
 ### Adding Tests (Task 10)
 
 ```bash
@@ -686,7 +679,7 @@ cd ~/Android/Sdk/emulator && ./emulator -avd <avd_name>
 
 ## Next Steps (Roadmap)
 
-- [ ] **Task 9**: Push Notifications (Expo Notifications)
+- [ ] **Task 9**: Push Notifications (Expo Notifications) — *deferred, requires dev client build*
 - [ ] **Task 10**: E2E Tests (Detox) + Unit Tests (Jest)
 - [ ] **Task 11**: Backend Deploy (Docker + Railway/Render)
 - [ ] **Task 12**: Frontend Deploy (EAS Build + App Store/Play Store)

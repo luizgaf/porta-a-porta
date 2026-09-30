@@ -4,20 +4,13 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
 import { Input, Button, Card } from '../../components/ui';
-import { api } from '../../utils/api';
-import { TipoUsuario } from '../../types';
+import { TipoUsuario, Condominio } from '../../types';
 import { colors, spacing, typography, borderRadius, layout } from '../../constants/design';
-
-interface Condominio {
-  id: string;
-  nome: string;
-  endereco: string;
-}
 
 export default function CommunitySelectionScreen() {
   const router = useRouter();
   const { isLoading } = useAuth();
-  const { register } = useApi();
+  const { register, getCondominios } = useApi();
   const { role } = useLocalSearchParams<{ role?: string }>();
   const [condominios, setCondominios] = useState<Condominio[]>([]);
   const [selectedCondominio, setSelectedCondominio] = useState<string>('');
@@ -39,7 +32,7 @@ export default function CommunitySelectionScreen() {
 
   const fetchCondominios = async () => {
     try {
-      const response = await api.get<{ condominios: Condominio[] }>('/condominios');
+      const response = await getCondominios();
       setCondominios(response.condominios || []);
     } catch {
       // Se falhar, permite entrada manual

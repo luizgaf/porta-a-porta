@@ -9,6 +9,7 @@ import type {
   Paginacao,
   LoginCredentials,
   RegisterData,
+  Condominio,
 } from '../types';
 
 export const useApi = () => {
@@ -50,8 +51,13 @@ export const useApi = () => {
     return api.get<{ usuario: any }>('/auth/me');
   }, []);
 
-  const updateUsuario = useCallback(async (data: { nome?: string; unidade?: string; pushToken?: string }) => {
+  const updateUsuario = useCallback(async (data: { nome?: string; unidade?: string }) => {
     return api.put<{ usuario: any }>('/usuarios/me', data);
+  }, []);
+
+  // Condomínios
+  const getCondominios = useCallback(async () => {
+    return api.get<{ condominios: Condominio[] }>('/condominios');
   }, []);
 
   // Produtos
@@ -174,6 +180,8 @@ export const useApi = () => {
     logout: logoutApi,
     getMe,
     updateUsuario,
+
+    getCondominios,
 
     // Produtos
     getProdutos,
