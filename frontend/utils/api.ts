@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../constants';
 import { ApiError } from '../types';
 
-const TOKEN_KEY = 'token_ki_auth';
+const TOKEN_KEY = 'token_ki_jwt';
 const USER_KEY = 'token_ki_user';
 const CONDOMINIO_ID_KEY = 'token_ki_condominioId';
 
@@ -70,6 +70,7 @@ class ApiClient {
     await AsyncStorage.removeItem(TOKEN_KEY);
     await AsyncStorage.removeItem(USER_KEY);
     await AsyncStorage.removeItem(CONDOMINIO_ID_KEY);
+    await AsyncStorage.removeItem('token_ki_auth');
   }
 
   // Métodos HTTP
