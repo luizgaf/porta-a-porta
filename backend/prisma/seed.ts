@@ -40,7 +40,7 @@ async function main() {
 
   for (let i = 0; i < condominios.length; i++) {
     const num = i + 1;
-    const email = `sindico${num}@porta-a-porta.com`;
+    const email = `sindico${num}@pap.com`;
     const nome = `Síndico ${num}`;
     const unidade = `Sala ${num}`;
     const cpf = `111.111.1${num.toString().padStart(2, '0')}`.replace(/\./g, '');
@@ -73,10 +73,10 @@ async function main() {
   const vendedorSenha = await bcrypt.hash('vendedor123', 10);
 
   await prisma.usuario.upsert({
-    where: { email: 'comprador1@porta-a-porta.com' },
+    where: { email: 'comprador1@pap.com' },
     update: {},
     create: {
-      email: 'comprador1@porta-a-porta.com',
+      email: 'comprador1@pap.com',
       nome: 'João Comprador',
       senhaHash: compradorSenha,
       cpf: '11111111101',
@@ -87,10 +87,10 @@ async function main() {
   });
 
   await prisma.usuario.upsert({
-    where: { email: 'vendedor1@porta-a-porta.com' },
+    where: { email: 'vendedor1@pap.com' },
     update: {},
     create: {
-      email: 'vendedor1@porta-a-porta.com',
+      email: 'vendedor1@pap.com',
       nome: 'Maria Vendedora',
       senhaHash: vendedorSenha,
       cpf: '11111111102',
@@ -147,11 +147,101 @@ async function main() {
       vendedorId: 0,
       condominioId: condominios[0].id,
     },
+    {
+      nome: 'Pão Francês',
+      descricao: 'Pão francês fresco - pacote com 6 unidades',
+      preco: 9.5,
+      categoria: 'Padaria',
+      status: 'ATIVO',
+      vendedorId: 0,
+      condominioId: condominios[0].id,
+    },
+    {
+      nome: 'Ovos de Codornin',
+      descricao: 'Ovos de codornin frescos - bandejada com 15 unidades',
+      preco: 28.0,
+      categoria: 'Ovos & Carnes',
+      status: 'ATIVO',
+      vendedorId: 0,
+      condominioId: condominios[0].id,
+    },
+    {
+      nome: 'Queijo Minas Frescal',
+      descricao: 'Queijo minas frescal artesanal 500g',
+      preco: 16.0,
+      categoria: 'Laticínios',
+      status: 'ATIVO',
+      vendedorId: 0,
+      condominioId: condominios[0].id,
+    },
+    {
+      nome: 'Creme de Leite',
+      descricao: 'Creme de leite líquido 200ml',
+      preco: 5.5,
+      categoria: 'Básicos',
+      status: 'ATIVO',
+      vendedorId: 0,
+      condominioId: condominios[0].id,
+    },
+    {
+      nome: 'Banana Prata',
+      descricao: 'Banana prata fresca - kilo',
+      preco: 6.0,
+      categoria: 'Frutas & Horti',
+      status: 'ATIVO',
+      vendedorId: 0,
+      condominioId: condominios[0].id,
+    },
+    {
+      nome: 'Feijão Carioca',
+      descricao: 'Feijão carioca 1kg - grão inteiro',
+      preco: 11.0,
+      categoria: 'Básicos',
+      status: 'PAUSADO',
+      vendedorId: 0,
+      condominioId: condominios[0].id,
+    },
+    {
+      nome: 'Brigadeiro de Colher',
+      descricao: 'Brigadeiro de colher caseiro 300g',
+      preco: 14.0,
+      categoria: 'Doces & Salgados',
+      status: 'ATIVO',
+      vendedorId: 0,
+      condominioId: condominios[0].id,
+    },
+    {
+      nome: 'Suco de Laranja Natural',
+      descricao: 'Suco de laranja natural 500ml - sem adição de açúcar',
+      preco: 12.0,
+      categoria: 'Bebidas',
+      status: 'ATIVO',
+      vendedorId: 0,
+      condominioId: condominios[0].id,
+    },
+    {
+      nome: 'Pão de Queijo',
+      descricao: 'Pão de queijo mineiro - unidade',
+      preco: 3.5,
+      categoria: 'Padaria',
+      status: 'ATIVO',
+      vendedorId: 0,
+      condominioId: condominios[0].id,
+    },
+    {
+      nome: 'Café da Manhã Completo',
+      descricao: 'Café da manhã: pão francês, manteiga, geleia, café - porção única',
+      preco: 18.0,
+      categoria: 'Doces & Salgados',
+      status: 'QUARENTENA',
+      vendedorId: 0,
+      condominioId: condominios[0].id,
+    },
   ];
 
   // Get vendedor1 ID
   const vendedor = await prisma.usuario.findUnique({
-    where: { email: 'vendedor1@porta-a-porta.com' },
+    where: { email: 'vendedor1@pap.com' },
   });
 
   for (const produto of produtos) {
@@ -180,9 +270,9 @@ async function main() {
   console.log('✅ Seed concluído:');
   console.log(`   - ${condominios.length} condomínios criados`);
   console.log(`   - ${condominios.length} síndicos criados`);
-  console.log('   - 1 comprador criado (comprador1@porta-a-porta.com / comprador123)');
-  console.log('   - 1 vendedor criado (vendedor1@porta-a-porta.com / vendedor123)');
-  console.log(`   - Síndico 1: sindico1@porta-a-porta.com / sindico123`);
+  console.log('   - 1 comprador criado (comprador1@pap.com / comprador123)');
+  console.log('   - 1 vendedor criado (vendedor1@pap.com / vendedor123)');
+  console.log(`   - Síndico 1: sindico1@pap.com / sindico123`);
   console.log(`   - ${produtos.length} produtos criados`);
 }
 

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,7 +10,7 @@ import { Produto } from '../../types';
 
 export default function CartScreen() {
   const router = useRouter();
-  const { usuario, isAuthenticated } = useAuth();
+  const { usuario, isAuthenticated, isLoading } = useAuth();
   const { items, totalItems, totalValue, updateQuantity, removeItem, clearCart } = useCartStore();
   const { createPedido } = useApi();
 
@@ -19,6 +19,12 @@ export default function CartScreen() {
   const [janelaHorario, setJanelaHorario] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (usuario) {
+      setUnidadeEntrega(usuario.unidade || '');
+    }
+  }, [usuario]);
 
   const handleFinalizarPedido = async () => {
     if (items.length === 0) return;
@@ -53,6 +59,15 @@ export default function CartScreen() {
       setLoading(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Ionicons name="cart-outline" size={64} color="#D1E3F0" />
+        <Text style={styles.emptyTitle}>Carregando...</Text>
+      </View>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
@@ -211,8 +226,6 @@ export default function CartScreen() {
     </KeyboardAvoidingView>
   );
 }
-
-import { useState } from 'react';
 
 const styles = StyleSheet.create({
   container: {

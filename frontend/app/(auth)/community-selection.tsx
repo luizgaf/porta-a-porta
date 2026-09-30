@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, TouchableOpacity, Alert, ActivityIndicator, ScrollView, Modal, FlatList } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
@@ -23,6 +23,7 @@ export default function CommunitySelectionScreen() {
   const [error, setError] = useState('');
   const [loadingCondominios, setLoadingCondominios] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [dropdownVisible, setDropdownVisible] = useState(false);
 
   const roleId = (role as TipoUsuario) || 'COMPRADOR';
 
@@ -47,6 +48,7 @@ export default function CommunitySelectionScreen() {
 
   const handleSelectCondominio = (condominioId: string) => {
     setSelectedCondominio(condominioId);
+    setDropdownVisible(false);
     setShowForm(true);
   };
 
@@ -112,42 +114,73 @@ export default function CommunitySelectionScreen() {
           </View>
 
           {!showForm && (
-            <Card style={styles.formCard}>
-              <View style={styles.condominioList}>
-                {condominios.map((cond) => (
-                  <TouchableOpacity
-                    key={cond.id}
-                    style={styles.condominioItem}
-                    onPress={() => handleSelectCondominio(cond.id)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.condominioInfo}>
-                      <Text style={styles.condominioName}>{cond.nome}</Text>
-                      <Text style={styles.condominioAddress}>{cond.endereco}</Text>
-                    </View>
-                    <Text style={styles.chevron}>›</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+            <View>
+              <Card style={styles.formCard}>
+                <Text style={styles.sectionLabel}>Condomínio</Text>
+                <TouchableOpacity
+                  style={[styles.dropdown, selectedCondominio ? styles.dropdownSelected : null]}
+                  onPress={() => setDropdownVisible(true)}
+                  disabled={loadingCondominios}
+                >
+                  <Text style={[styles.dropdownText, selectedCondominio ? null : styles.dropdownPlaceholder]}>
+                    {loadingCondominios
+                      ? 'Carregando...'
+                      : selectedCondominio
+                        ? condominios.find(c => c.id === selectedCondominio)?.nome || 'Selecione'
+                        : 'Selecione um condomínio'}
+                  </Text>
+                </TouchableOpacity>
 
-              <View style={styles.manualEntry}>
-                <Text style={styles.manualText}>Condomínio não encontrado?</Text>
-                <Input
-                  label="ID do Condomínio"
-                  placeholder="Fornecido pelo síndico"
-                  value={selectedCondominio}
-                  onChangeText={setSelectedCondominio}
-                  autoCapitalize="none"
-                />
-                <Button
-                  title="Continuar com ID Manual"
-                  onPress={() => selectedCondominio && setShowForm(true)}
-                  disabled={!selectedCondominio}
-                  fullWidth
-                  variant="outline"
-                />
-              </View>
-            </Card>
+                <View style={styles.manualEntry}>
+                  <Text style={styles.manualText}>Condomínio não encontrado?</Text>
+                  <Input
+                    label="ID do Condomínio"
+                    placeholder="Fornecido pelo síndico"
+                    value={selectedCondominio}
+                    onChangeText={setSelectedCondominio}
+                    autoCapitalize="none"
+                  />
+                  <Button
+                    title="Continuar com ID Manual"
+                    onPress={() => selectedCondominio && setShowForm(true)}
+                    disabled={!selectedCondominio}
+                    fullWidth
+                    variant="outline"
+                  />
+                </View>
+              </Card>
+
+              <Modal
+              transparent
+              visible={dropdownVisible}
+              animationType="fade"
+              onRequestClose={() => setDropdownVisible(false)}
+            >
+              <TouchableOpacity
+                style={styles.modalOverlay}
+                activeOpacity={1}
+                onPress={() => setDropdownVisible(false)}
+              >
+                <View style={styles.modalContent}>
+                  <Text style={styles.modalTitle}>Selecione um Condomínio</Text>
+                  <FlatList
+                    data={condominios}
+                    keyExtractor={(item) => item.id}
+                    showsVerticalScrollIndicator={false}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={styles.modalItem}
+                        onPress={() => handleSelectCondominio(item.id)}
+                      >
+                        <Text style={styles.modalItemText}>{item.nome}</Text>
+                        <Text style={styles.modalItemSubtext}>{item.endereco}</Text>
+                      </TouchableOpacity>
+                    )}
+                  />
+                </View>
+              </TouchableOpacity>
+            </Modal>
+            </View>
           )}
 
           {showForm && (
@@ -278,6 +311,12 @@ const styles = StyleSheet.create({
   formCard: {
     marginBottom: spacing.lg,
   },
+  sectionLabel: {
+    ...typography.bodySmall,
+    fontWeight: '600' as const,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
   manualEntry: {
     marginTop: spacing.md,
     gap: spacing.sm,
@@ -286,8 +325,61 @@ const styles = StyleSheet.create({
     ...typography.bodyMedium,
     color: colors.textSecondary,
   },
-  condominioList: {
-    maxHeight: 300,
+  dropdown: {
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+  },
+  dropdownSelected: {
+    borderColor: colors.portaNavy,
+  },
+  dropdownText: {
+    fontSize: 16,
+    color: colors.portaNavy,
+  },
+  dropdownPlaceholder: {
+    color: colors.mutedSlate,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    maxHeight: '60%',
+    width: '100%',
+    padding: spacing.md,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.portaNavy,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  modalItem: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  modalItemText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.portaNavy,
+  },
+  modalItemSubtext: {
+    fontSize: 13,
+    color: colors.mutedSlate,
+    marginTop: 2,
   },
   condominioItem: {
     flexDirection: 'row',

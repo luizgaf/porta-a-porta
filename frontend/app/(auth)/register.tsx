@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ScrollView } from 'react-native';
-import { Link, useRouter } from 'expo-router';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ScrollView, Modal, FlatList } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
 import { Input, Button, Card } from '../../components/ui';
 import { TipoUsuario } from '../../constants';
+import { Condominio } from '../../types';
 
 export default function RegisterScreen() {
   const router = useRouter();
   const { isLoading } = useAuth();
-  const { register } = useApi();
+  const api = useApi();
+  const { register } = api;
   const [formData, setFormData] = useState({
     condominioId: '',
     nome: '',
@@ -21,6 +23,23 @@ export default function RegisterScreen() {
     tipo: 'COMPRADOR' as TipoUsuario,
   });
   const [error, setError] = useState('');
+  const [condominios, setCondominios] = useState<Condominio[]>([]);
+  const [condominiosLoading, setCondominiosLoading] = useState(true);
+  const [dropdownVisible, setDropdownVisible] = useState(false);
+
+  useEffect(() => {
+    const loadCondominios = async () => {
+      try {
+        const response = await api.getCondominios();
+        setCondominios(response.condominios);
+      } catch (err: any) {
+        setError('Não foi possível carregar os condomínios');
+      } finally {
+        setCondominiosLoading(false);
+      }
+    };
+    loadCondominios();
+  }, []);
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -77,14 +96,20 @@ export default function RegisterScreen() {
           </View>
 
           <Card style={styles.formCard}>
-            <Input
-              label="ID do Condomínio"
-              placeholder="Fornecido pelo síndico"
-              value={formData.condominioId}
-              onChangeText={(v) => handleChange('condominioId', v)}
-              autoCapitalize="none"
-              style={styles.input}
-            />
+            <Text style={styles.sectionLabel}>Condomínio</Text>
+            <TouchableOpacity
+              style={[styles.dropdown, formData.condominioId ? styles.dropdownSelected : null]}
+              onPress={() => setDropdownVisible(true)}
+              disabled={condominiosLoading}
+            >
+              <Text style={[styles.dropdownText, formData.condominioId ? null : styles.dropdownPlaceholder]}>
+                {condominiosLoading
+                  ? 'Carregando...'
+                  : formData.condominioId
+                    ? condominios.find(c => c.id === formData.condominioId)?.nome || 'Selecione'
+                    : 'Selecione um condomínio'}
+              </Text>
+            </TouchableOpacity>
 
             <Input
               label="Nome Completo"
@@ -178,6 +203,40 @@ export default function RegisterScreen() {
             />
           </Card>
 
+          <Modal
+            transparent
+            visible={dropdownVisible}
+            animationType="fade"
+            onRequestClose={() => setDropdownVisible(false)}
+          >
+            <TouchableOpacity
+              style={styles.modalOverlay}
+              activeOpacity={1}
+              onPress={() => setDropdownVisible(false)}
+            >
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Selecione um Condomínio</Text>
+                <FlatList
+                  data={condominios}
+                  keyExtractor={(item) => item.id}
+                  showsVerticalScrollIndicator={false}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.modalItem}
+                      onPress={() => {
+                        handleChange('condominioId', item.id);
+                        setDropdownVisible(false);
+                      }}
+                    >
+                      <Text style={styles.modalItemText}>{item.nome}</Text>
+                      <Text style={styles.modalItemSubtext}>{item.endereco}</Text>
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+            </TouchableOpacity>
+          </Modal>
+
           <View style={styles.footer}>
             <Text style={styles.footerText}>Já tem conta? </Text>
             <TouchableOpacity onPress={() => router.replace('/(auth)/login')}>
@@ -223,6 +282,62 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 16,
+  },
+  dropdown: {
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1E3F0',
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+  },
+  dropdownSelected: {
+    borderColor: '#1E3A5F',
+  },
+  dropdownText: {
+    fontSize: 16,
+    color: '#1E3A5F',
+  },
+  dropdownPlaceholder: {
+    color: '#9CA3AF',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    maxHeight: '60%',
+    width: '100%',
+    padding: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1E3A5F',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalItem: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  modalItemText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1E3A5F',
+  },
+  modalItemSubtext: {
+    fontSize: 13,
+    color: '#6C7A8A',
+    marginTop: 2,
   },
   sectionLabel: {
     fontSize: 14,

@@ -216,6 +216,13 @@ npm run lint         # ESLint
 
 ---
 
+## Contas de Teste (Seed)
+- **Síndico 1**: `sindico1@pap.com` / `sindico123`
+- **Comprador**: `comprador1@pap.com` / `comprador123`
+- **Vendedor**: `vendedor1@pap.com` / `vendedor123`
+- **Síndicos 2-10**: `sindico2@pap.com` … `sindico10@pap.com` / `sindico123`
+- 10 condomínios seed-cond-1 … seed-cond-10
+
 ## Status TypeScript Frontend
 ✅ Compilação limpa (npx tsc --noEmit sem erros)
 
