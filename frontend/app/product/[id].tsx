@@ -160,7 +160,7 @@ export default function ProductDetailScreen() {
           <View>
             <Text style={styles.nome}>{produto.nome}</Text>
             <View style={styles.priceRow}>
-              <Text style={styles.preco}>R$ {produto.preco.toFixed(2).replace('.', ',')}</Text>
+              <Text style={styles.preco}>R$ {parseFloat(String(produto.preco)).toFixed(2).replace('.', ',')}</Text>
               <Text style={styles.categoria}>{produto.categoria}</Text>
             </View>
           </View>
