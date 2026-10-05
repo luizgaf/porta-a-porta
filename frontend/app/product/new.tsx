@@ -16,7 +16,7 @@ export default function NewProductScreen() {
     nome: '',
     descricao: '',
     preco: '',
-    categoria: 'Alimentos',
+    categoria: CATEGORIAS[0],
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [creating, setCreating] = useState(false);

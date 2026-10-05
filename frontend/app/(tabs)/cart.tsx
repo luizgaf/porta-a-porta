@@ -7,6 +7,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
 import { Card, Button, Input } from '../../components/ui';
 import { Produto } from '../../types';
+import { formatBRL, toNumber } from '../../utils/format';
 
 export default function CartScreen() {
   const router = useRouter();
@@ -99,7 +100,7 @@ export default function CartScreen() {
       />
       <View style={styles.itemInfo} >
         <Text style={styles.itemNome} numberOfLines={2}>{item.produto.nome}</Text>
-        <Text style={styles.itemPreco}>R$ {item.produto.preco.toFixed(2).replace('.', ',')} cada</Text>
+        <Text style={styles.itemPreco}>{formatBRL(item.produto.preco)} cada</Text>
         <View style={styles.quantityControls}>
           <TouchableOpacity
             style={styles.qtyButton}
@@ -119,7 +120,7 @@ export default function CartScreen() {
       </View>
       <View style={styles.itemRight}>
         <Text style={styles.itemTotal}>
-          R$ {(item.produto.preco * item.quantidade).toFixed(2).replace('.', ',')}
+          {formatBRL(toNumber(item.produto.preco) * item.quantidade)}
         </Text>
         <TouchableOpacity
           style={styles.removeButton}
@@ -200,7 +201,7 @@ export default function CartScreen() {
         <Card style={styles.summaryCard}>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Subtotal ({totalItems} itens)</Text>
-            <Text style={styles.summaryValue}>R$ {totalValue.toFixed(2).replace('.', ',')}</Text>
+            <Text style={styles.summaryValue}>{formatBRL(totalValue)}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Taxa de Entrega</Text>
@@ -208,13 +209,13 @@ export default function CartScreen() {
           </View>
           <View style={styles.summaryRowTotal}>
             <Text style={styles.summaryLabelTotal}>Total</Text>
-            <Text style={styles.summaryValueTotal}>R$ {totalValue.toFixed(2).replace('.', ',')}</Text>
+            <Text style={styles.summaryValueTotal}>{formatBRL(totalValue)}</Text>
           </View>
 
           {error && <Text style={styles.errorText}>{error}</Text>}
 
           <Button
-            title={`Finalizar Pedido - R$ ${totalValue.toFixed(2).replace('.', ',')}`}
+            title={`Finalizar Pedido - ${formatBRL(totalValue)}`}
             onPress={handleFinalizarPedido}
             loading={loading}
             fullWidth

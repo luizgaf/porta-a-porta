@@ -57,7 +57,7 @@ class ApiClient {
 
   private formatError(error: AxiosError<ApiError>): Error & { code?: string; statusCode: number } {
     const err = new Error(
-      error.response?.data?.message || error.message || 'Erro desconhecido'
+      error.response?.data?.error || error.response?.data?.message || error.message || 'Erro desconhecido'
     ) as Error & { code?: string; statusCode: number };
 
     err.code = error.response?.data?.code;

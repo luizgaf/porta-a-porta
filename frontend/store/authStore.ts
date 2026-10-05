@@ -65,6 +65,7 @@ export const useAuthStore = create<AuthState>()(
         // Limpar chaves do api.ts
         await AsyncStorage.removeItem(USER_KEY);
         await AsyncStorage.removeItem(CONDOMINIO_ID_KEY);
+        await AsyncStorage.removeItem('token_ki_jwt');
       },
 
       setLoading: (isLoading: boolean) => {

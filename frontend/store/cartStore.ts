@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Produto } from '../types';
+import { toNumber } from '../utils/format';
 
 interface CartItem {
   produto: Produto;
@@ -36,7 +37,7 @@ const customStorage = {
 const calculateTotals = (items: CartItem[]) => {
   const totalItems = items.reduce((sum, item) => sum + item.quantidade, 0);
   const totalValue = items.reduce(
-    (sum, item) => sum + item.produto.preco * item.quantidade,
+    (sum, item) => sum + toNumber(item.produto.preco) * item.quantidade,
     0
   );
   return { totalItems, totalValue };

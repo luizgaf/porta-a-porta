@@ -5,8 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
 import { Card, Button, Avatar } from '../../components/ui';
-import { STATUS_LABELS, TIPO_ENTREGA_LABELS } from '../../constants';
+import { STATUS_LABELS, TIPO_ENTREGA_LABELS, ACAO_STATUS_LABELS } from '../../constants';
 import { Pedido, ItemPedido, StatusPedido } from '../../types';
+import { formatBRL, toNumber } from '../../utils/format';
 
 const STATUS_COLORS: Record<StatusPedido, string> = {
   PENDENTE: '#FFC107',
@@ -92,7 +93,13 @@ export default function OrderDetailScreen() {
       ENTREGUE: [],
       CANCELADO: [],
     };
-    return transitions[currentStatus] || [];
+    const proximos = transitions[currentStatus] || [];
+    // Comprador (que não é vendedor do pedido nem síndico) só pode cancelar; a API recusa as demais transições
+    const ehVendedorDoPedido = isVendedor && pedido?.itens.some(i => i.produto?.vendedorId === usuario?.id);
+    if (!isSindico && !ehVendedorDoPedido) {
+      return proximos.filter(s => s === 'CANCELADO');
+    }
+    return proximos;
   };
 
   const canUpdateStatus = () => {
@@ -128,11 +135,11 @@ export default function OrderDetailScreen() {
       <View style={styles.itemInfo} >
         <Text style={styles.itemNome}>{item.produto?.nome || 'Produto'}</Text>
         <Text style={styles.itemDetails}>
-          {item.quantidade}x R$ {item.precoUnitario.toFixed(2).replace('.', ',')}
+          {item.quantidade}x {formatBRL(item.precoUnitario)}
         </Text>
       </View>
       <Text style={styles.itemTotal}>
-        R$ {(item.quantidade * item.precoUnitario).toFixed(2).replace('.', ',')}
+        {formatBRL(item.quantidade * toNumber(item.precoUnitario))}
       </Text>
     </View>
   );
@@ -240,7 +247,7 @@ export default function OrderDetailScreen() {
             <View>
               <Text style={styles.infoLabel}>Valor Total</Text>
               <Text style={[styles.infoValue, { fontSize: 18, fontWeight: '700', color: '#28A745' }]}>
-                R$ {pedido.valorTotal.toFixed(2).replace('.', ',')}
+                {formatBRL(pedido.valorTotal)}
               </Text>
             </View>
           </View>
@@ -295,7 +302,7 @@ export default function OrderDetailScreen() {
             {getNextStatuses(pedido.status).map((nextStatus) => (
               <Button
                 key={nextStatus}
-                title={STATUS_LABELS[nextStatus]}
+                title={ACAO_STATUS_LABELS[nextStatus]}
                 onPress={() => handleUpdateStatus(nextStatus)}
                 variant={nextStatus === 'CANCELADO' ? 'danger' : 'primary'}
                 fullWidth

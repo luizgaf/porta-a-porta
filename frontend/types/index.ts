@@ -1,3 +1,5 @@
+import type { Decimal } from '../utils/format';
+
 export type TipoUsuario = 'COMPRADOR' | 'VENDEDOR' | 'SINDICO';
 
 export type StatusProduto = 'ATIVO' | 'PAUSADO' | 'QUARENTENA' | 'EXCLUIDO';
@@ -29,7 +31,7 @@ export interface Produto {
   vendedorId: string;
   nome: string;
   descricao?: string;
-  preco: number;
+  preco: Decimal;
   categoria: string;
   status: StatusProduto;
   criadoEm: string;
@@ -49,7 +51,7 @@ export interface ItemPedido {
   pedidoId: string;
   produtoId: string;
   quantidade: number;
-  precoUnitario: number;
+  precoUnitario: Decimal;
   produto?: Produto;
 }
 
@@ -61,7 +63,7 @@ export interface Pedido {
   tipoEntrega: TipoEntrega;
   janelaHorario: string;
   status: StatusPedido;
-  valorTotal: number;
+  valorTotal: Decimal;
   criadoEm: string;
   atualizadoEm: string;
   itens: ItemPedido[];
@@ -150,7 +152,8 @@ export interface Paginacao<T> {
 }
 
 export interface ApiError {
-  message: string;
+  error?: string;
+  message?: string;
   code?: string;
   statusCode: number;
 }
