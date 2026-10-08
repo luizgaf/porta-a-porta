@@ -139,10 +139,6 @@ export const useApi = () => {
     return api.post<{ avaliacao: Avaliacao }>('/avaliacoes', data);
   }, []);
 
-  const updateAvaliacao = useCallback(async (pedidoId: string, data: UpdateAvaliacaoData) => {
-    return api.put<{ avaliacao: Avaliacao }>(`/avaliacoes/${pedidoId}`, data);
-  }, []);
-
   const deleteAvaliacao = useCallback(async (pedidoId: string) => {
     return api.delete<{ message: string }>(`/avaliacoes/${pedidoId}`);
   }, []);
@@ -202,7 +198,6 @@ export const useApi = () => {
     getAvaliacoes,
     getAvaliacoesProduto,
     createAvaliacao,
-    updateAvaliacao,
     deleteAvaliacao,
 
     // Denúncias
@@ -245,11 +240,6 @@ export interface UpdatePedidoStatusData {
 export interface CreateAvaliacaoData {
   pedidoId: string;
   nota: number;
-  comentario?: string;
-}
-
-export interface UpdateAvaliacaoData {
-  nota?: number;
   comentario?: string;
 }
 
