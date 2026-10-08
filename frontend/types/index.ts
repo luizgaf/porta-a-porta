@@ -92,7 +92,8 @@ export interface Avaliacao {
 export interface Denuncia {
   id: string;
   produtoId: string;
-  denuncianteId: string;
+  // A API só devolve a identificação ao próprio autor, na criação da denúncia (RN02)
+  denuncianteId?: string;
   motivo: string;
   criadoEm: string;
   produto?: {
@@ -207,11 +208,6 @@ export interface UpdatePedidoStatusData {
 export interface CreateAvaliacaoData {
   pedidoId: string;
   nota: number;
-  comentario?: string;
-}
-
-export interface UpdateAvaliacaoData {
-  nota?: number;
   comentario?: string;
 }
 

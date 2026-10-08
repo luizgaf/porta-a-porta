@@ -4,7 +4,7 @@ import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
-import { Card, Button, Avatar } from '../../components/ui';
+import { Card, Button } from '../../components/ui';
 import { STATUS_LABELS } from '../../constants';
 import { Denuncia, Produto } from '../../types';
 
@@ -143,9 +143,7 @@ export default function ModeratorScreen() {
           {renderStatusBadge(item.produto?.status || 'ATIVO')}
         </View>
         <View style={styles.denunciaMeta}>
-          <Text style={styles.denunciaDenunciante}>
-            Por {item.denunciante?.nome || 'Anônimo'} ({item.denunciante?.unidade || ''})
-          </Text>
+          <Text style={styles.denunciaDenunciante}>Denúncia anônima</Text>
           <Text style={styles.denunciaDate}>
             {new Date(item.criadoEm).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
           </Text>
@@ -241,13 +239,6 @@ export default function ModeratorScreen() {
                       data={denunciasProduto}
                       renderItem={({ item }) => (
                         <View style={styles.modalDenunciaItem}>
-                          <View style={styles.modalDenunciaAuthor}>
-                            <Avatar name={item.denunciante?.nome || 'U'} size="xs" />
-                            <View>
-                              <Text style={styles.modalDenunciaName}>{item.denunciante?.nome || 'Anônimo'}</Text>
-                              <Text style={styles.modalDenunciaUnit}>{item.denunciante?.unidade || ''}</Text>
-                            </View>
-                          </View>
                           <Text style={styles.modalDenunciaMotivo}>"{item.motivo}"</Text>
                           <Text style={styles.modalDenunciaDate}>
                             {new Date(item.criadoEm).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
