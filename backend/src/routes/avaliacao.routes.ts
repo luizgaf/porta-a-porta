@@ -13,11 +13,6 @@ const createAvaliacaoSchema = z.object({
   comentario: z.string().max(500).optional(),
 });
 
-const updateAvaliacaoSchema = z.object({
-  nota: z.number().int().min(1).max(5).optional(),
-  comentario: z.string().max(500).optional(),
-});
-
 const querySchema = z.object({
   pagina: z.coerce.number().int().positive().default(1),
   limite: z.coerce.number().int().positive().max(50).default(20),
@@ -189,33 +184,10 @@ router.get('/produto/:produtoId', authMiddleware, asyncHandler(async (req: AuthR
   });
 }));
 
-// PUT /api/avaliacoes/:pedidoId - Atualizar avaliação (apenas comprador)
-router.put('/:pedidoId', authMiddleware, requireRole('COMPRADOR', 'SINDICO'), asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { pedidoId } = req.params;
-  const data = updateAvaliacaoSchema.parse(req.body);
-
-  const avaliacao = await prisma.avaliacao.findUnique({
-    where: { pedidoId },
-    include: { pedido: true },
-  });
-
-  if (!avaliacao) {
-    throw new AppError(404, 'Avaliação não encontrada', 'AVALIACAO_NOT_FOUND');
-  }
-
-  if (avaliacao.compradorId !== req.user!.id && req.user!.tipo !== 'SINDICO') {
-    throw new AppError(403, 'Não autorizado', 'FORBIDDEN');
-  }
-
-  const updated = await prisma.avaliacao.update({
-    where: { pedidoId },
-    data,
-    include: {
-      comprador: { select: { id: true, nome: true, unidade: true } },
-    },
-  });
-
-  res.json({ avaliacao: updated });
+// PUT /api/avaliacoes/:pedidoId - Edição não permitida
+// RN02: avaliações são definitivas; depois do envio, apenas o síndico pode removê-las (DELETE).
+router.put('/:pedidoId', authMiddleware, asyncHandler(async (_req: AuthRequest, _res: Response) => {
+  throw new AppError(403, 'Avaliações são definitivas e não podem ser editadas após o envio', 'AVALIACAO_IMUTAVEL');
 }));
 
 // DELETE /api/avaliacoes/:pedidoId - Remover avaliação (síndico)

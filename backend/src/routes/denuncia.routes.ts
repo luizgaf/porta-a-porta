@@ -22,6 +22,21 @@ const updateDenunciaStatusSchema = z.object({
   justificativa: z.string().optional(),
 });
 
+// RN02: a denúncia é exibida sem nenhum dado que identifique o denunciante, inclusive para o síndico.
+// O vínculo com o autor fica apenas no banco (contagem de denúncias distintas e bloqueio de duplicatas).
+const denunciaSemIdentificacao = {
+  id: true,
+  produtoId: true,
+  motivo: true,
+  criadoEm: true,
+} as const;
+
+// Garante que nenhum campo de identificação saia na resposta, mesmo que a consulta mude
+const paraModeracao = (denuncia: Record<string, unknown>) => {
+  const { denuncianteId, denunciante, ...semIdentificacao } = denuncia;
+  return semIdentificacao;
+};
+
 // POST /api/denuncias - Criar denúncia
 router.post('/', authMiddleware, asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = createDenunciaSchema.parse(req.body);
@@ -95,12 +110,10 @@ router.get('/', authMiddleware, requireRole('SINDICO'), asyncHandler(async (req:
           condominioId: req.user!.condominioId,
         },
       },
-      include: {
+      select: {
+        ...denunciaSemIdentificacao,
         produto: {
-          select: { id: true, nome: true, vendedorId: true },
-        },
-        denunciante: {
-          select: { id: true, nome: true, unidade: true },
+          select: { id: true, nome: true, status: true, vendedorId: true },
         },
       },
       orderBy: { criadoEm: 'desc' },
@@ -117,7 +130,7 @@ router.get('/', authMiddleware, requireRole('SINDICO'), asyncHandler(async (req:
   ]);
 
   res.json({
-    denuncias,
+    denuncias: denuncias.map(paraModeracao),
     paginacao: {
       pagina,
       limite,
@@ -127,7 +140,7 @@ router.get('/', authMiddleware, requireRole('SINDICO'), asyncHandler(async (req:
   });
 }));
 
-// GET /api/denuncias/produto/:produtoId - Ver denúncias de um produto (síndico)
+// GET /api/denuncias/produto/:produtoId - Ver denúncias de um produto, sem identificação (síndico)
 router.get('/produto/:produtoId', authMiddleware, requireRole('SINDICO'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const { produtoId } = req.params;
 
@@ -138,25 +151,21 @@ router.get('/produto/:produtoId', authMiddleware, requireRole('SINDICO'), asyncH
         condominioId: req.user!.condominioId,
       },
     },
-    include: {
-      denunciante: {
-        select: { id: true, nome: true, unidade: true },
-      },
-    },
+    select: denunciaSemIdentificacao,
     orderBy: { criadoEm: 'desc' },
   });
 
-  // LOG AUDITORIA: Síndico acessou identidades dos denunciantes
+  // LOG AUDITORIA: Síndico consultou as denúncias do anúncio (sem identificação dos denunciantes)
   await prisma.logAuditoria.create({
     data: {
       sindicoId: req.user!.id,
-      acao: 'VISUALIZAR_DENUNCIANTES',
+      acao: 'VISUALIZAR_DENUNCIAS',
       entidadeId: produtoId,
-      justificativa: 'Visualização de denunciantes para moderação',
+      justificativa: 'Consulta das denúncias do anúncio para moderação',
     },
   });
 
-  res.json({ denuncias });
+  res.json({ denuncias: denuncias.map(paraModeracao) });
 }));
 
 // PATCH /api/denuncias/:produtoId/quarentena - Síndico gerencia quarentena (aceitar/restaurar)

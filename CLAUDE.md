@@ -83,15 +83,15 @@ npm run prisma:studio
 
 ### Denúncias (Task 5)
 - `POST /api/denuncias` — Criar denúncia (auto-quarentena se ≥3)
-- `GET /api/denuncias` — Listar (SINDICO)
-- `GET /api/denuncias/produto/:produtoId` — Ver denúncias + identidades (SINDICO, LogAuditoria)
+- `GET /api/denuncias` — Listar, sem identificação do denunciante (SINDICO)
+- `GET /api/denuncias/produto/:produtoId` — Ver denúncias do produto, sem identificação do denunciante (SINDICO, LogAuditoria)
 - `PATCH /api/denuncias/:produtoId/quarentena` — Aplicar/restaurar quarentena (SINDICO, LogAuditoria)
 
 ### Avaliações (Task 6)
 - `POST /api/avaliacoes` — Criar (COMPRADOR, pedido ENTREGUE)
 - `GET /api/avaliacoes` — Listar (VENDEDOR/SINDICO)
 - `GET /api/avaliacoes/produto/:produtoId` — Média por produto
-- `PUT /api/avaliacoes/:pedidoId` — Atualizar (COMPRADOR)
+- `PUT /api/avaliacoes/:pedidoId` — Edição bloqueada (403): avaliações são definitivas
 - `DELETE /api/avaliacoes/:pedidoId` — Remover (SINDICO)
 
 ### Auditoria (Task 7)

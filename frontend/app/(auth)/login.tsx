@@ -8,7 +8,7 @@ import { colors, spacing, typography, borderRadius, layout } from '../../constan
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, setLoading, isLoading } = useAuth();
+  const { setLoading, isLoading } = useAuth();
   const { login: loginApi } = useApi();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
@@ -22,8 +22,7 @@ export default function LoginScreen() {
     setError('');
     setLoading(true);
     try {
-      const response = await loginApi({ email, senha });
-      await login(response.usuario, response.token);
+      await loginApi({ email, senha });
       router.replace('/(tabs)/home');
     } catch (err: any) {
       setError(err.message || 'Erro ao fazer login');
