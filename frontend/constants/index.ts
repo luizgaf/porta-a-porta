@@ -32,6 +32,16 @@ export const STATUS_LABELS: Record<string, string> = {
   SINDICO: 'Síndico',
 };
 
+// Texto dos botões que levam o pedido ao próximo status
+export const ACAO_STATUS_LABELS: Record<StatusPedido, string> = {
+  PENDENTE: 'Voltar para Pendente',
+  CONFIRMADO: 'Confirmar',
+  EM_PREPARO: 'Iniciar Preparo',
+  PRONTO_ENTREGA: 'Marcar como Pronto',
+  ENTREGUE: 'Marcar como Entregue',
+  CANCELADO: 'Cancelar Pedido',
+};
+
 export const TIPO_ENTREGA_LABELS: Record<TipoEntrega, string> = {
   PORTARIA: 'Portaria',
   UNIDADE: 'Unidade',
@@ -39,13 +49,19 @@ export const TIPO_ENTREGA_LABELS: Record<TipoEntrega, string> = {
 };
 
 export const CATEGORIAS = [
-  'Alimentos',
+  'Padaria',
+  'Doces & Salgados',
   'Bebidas',
+  'Laticínios',
+  'Frutas & Horti',
+  'Ovos & Carnes',
+  'Básicos',
+  'Produtos Naturais',
   'Limpeza',
   'Higiene',
   'Papelaria',
-  'Eletrônicos',
   'Roupas',
+  'Eletrônicos',
   'Outros',
 ];
 

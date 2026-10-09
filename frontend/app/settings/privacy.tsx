@@ -1,11 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Card } from '../../components/ui';
 
 export default function PrivacySettingsScreen() {
   const router = useRouter();
+
+  // Estas funcionalidades ainda não têm tela nem endpoint no backend
+  const emBreve = () =>
+    Alert.alert('Em breve', 'Esta funcionalidade ainda não está disponível. Fale com o síndico do seu condomínio.');
 
   return (
     <View style={styles.container}>
@@ -69,13 +73,13 @@ export default function PrivacySettingsScreen() {
 
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>Dados e Conta</Text>
-          <TouchableOpacity style={styles.actionRow} onPress={() => router.push('/settings/export-data')}>
+          <TouchableOpacity style={styles.actionRow} onPress={emBreve}>
             <Ionicons name="download-outline" size={24} color="#1E3A5F" style={styles.settingIcon} />
             <Text style={styles.actionText}>Exportar Meus Dados</Text>
             <Ionicons name="chevron-forward" size={20} color="#9AA8B8" />
           </TouchableOpacity>
           <View style={styles.divider} />
-          <TouchableOpacity style={styles.actionRow} onPress={() => router.push('/settings/delete-account')}>
+          <TouchableOpacity style={styles.actionRow} onPress={emBreve}>
             <Ionicons name="trash-outline" size={24} color="#DC3545" style={styles.settingIcon} />
             <Text style={[styles.actionText, { color: '#DC3545' }]}>Excluir Conta</Text>
             <Ionicons name="chevron-forward" size={20} color="#9AA8B8" />
@@ -84,13 +88,13 @@ export default function PrivacySettingsScreen() {
 
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>Segurança</Text>
-          <TouchableOpacity style={styles.actionRow} onPress={() => router.push('/settings/change-password')}>
+          <TouchableOpacity style={styles.actionRow} onPress={emBreve}>
             <Ionicons name="lock-closed-outline" size={24} color="#1E3A5F" style={styles.settingIcon} />
             <Text style={styles.actionText}>Alterar Senha</Text>
             <Ionicons name="chevron-forward" size={20} color="#9AA8B8" />
           </TouchableOpacity>
           <View style={styles.divider} />
-          <TouchableOpacity style={styles.actionRow} onPress={() => router.push('/settings/sessions')}>
+          <TouchableOpacity style={styles.actionRow} onPress={emBreve}>
             <Ionicons name="dice-outline" size={24} color="#1E3A5F" style={styles.settingIcon} />
             <Text style={styles.actionText}>Sessões Ativas</Text>
             <Ionicons name="chevron-forward" size={20} color="#9AA8B8" />

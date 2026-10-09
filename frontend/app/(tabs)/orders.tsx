@@ -5,8 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
 import { Card, Button, Avatar } from '../../components/ui';
-import { STATUS_LABELS, TIPO_ENTREGA_LABELS } from '../../constants';
+import { STATUS_LABELS, TIPO_ENTREGA_LABELS, ACAO_STATUS_LABELS } from '../../constants';
 import { Pedido, StatusPedido } from '../../types';
+import { formatBRL } from '../../utils/format';
 
 const STATUS_COLORS: Record<StatusPedido, string> = {
   PENDENTE: '#FFC107',
@@ -121,7 +122,7 @@ export default function OrdersScreen() {
         <View style={styles.pedidoRow}>
           <Ionicons name="cash" size={16} color="#6C7A8A" />
           <Text style={styles.pedidoDetail}>
-            R$ {item.valorTotal.toFixed(2).replace('.', ',')} • {item.itens.length} item(ns)
+            {formatBRL(item.valorTotal)} • {item.itens.length} item(ns)
           </Text>
         </View>
 
@@ -145,7 +146,7 @@ export default function OrdersScreen() {
           {getNextStatuses(item.status).map((nextStatus) => (
             <Button
               key={nextStatus}
-              title={STATUS_LABELS[nextStatus]}
+              title={ACAO_STATUS_LABELS[nextStatus]}
               onPress={() => handleUpdateStatus(item, nextStatus)}
               variant={nextStatus === 'CANCELADO' ? 'danger' : 'outline'}
               size="sm"

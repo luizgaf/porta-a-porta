@@ -13,7 +13,7 @@ import type {
 } from '../types';
 
 export const useApi = () => {
-  const { token, logout } = useAuth();
+  const { logout, login: setAuth } = useAuth();
 
   // Auth
   const login = useCallback(async (credentials: LoginCredentials) => {
@@ -26,8 +26,9 @@ export const useApi = () => {
     if (response.usuario.condominioId) {
       await api.setCondominioId(response.usuario.condominioId);
     }
+    await setAuth(response.usuario, response.token);
     return response;
-  }, []);
+  }, [setAuth]);
 
   const register = useCallback(async (data: RegisterData) => {
     const response = await api.post<{ message: string; usuario: any; token: string }>(
@@ -39,8 +40,9 @@ export const useApi = () => {
     if (response.usuario.condominioId) {
       await api.setCondominioId(response.usuario.condominioId);
     }
+    await setAuth(response.usuario, response.token);
     return response;
-  }, []);
+  }, [setAuth]);
 
   const logoutApi = useCallback(async () => {
     await api.removeToken();

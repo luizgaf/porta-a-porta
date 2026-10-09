@@ -7,11 +7,13 @@ import { useApi } from '../../hooks/useApi';
 import { Card, Button, Avatar, Input } from '../../components/ui';
 import { STATUS_LABELS, TIPO_ENTREGA_LABELS } from '../../constants';
 import { Usuario, Produto, Pedido } from '../../types';
+import { formatBRL } from '../../utils/format';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { usuario, isVendedor, isSindico, logout, updateUsuario, hasRole } = useAuth();
-  const { getMeusProdutos, getPedidos } = useApi();
+  const { getMeusProdutos, getPedidos, updateUsuario: updateUsuarioApi } = useApi();
+  const [savingProfile, setSavingProfile] = useState(false);
 
   const [meusProdutos, setMeusProdutos] = useState<Produto[]>([]);
   const [meusPedidos, setMeusPedidos] = useState<Pedido[]>([]);
@@ -58,13 +60,16 @@ export default function ProfileScreen() {
       return;
     }
 
+    setSavingProfile(true);
     try {
-      // TODO: Implementar endpoint de atualização de perfil
-      updateUsuario({ nome: editNome, unidade: editUnidade });
+      const response = await updateUsuarioApi({ nome: editNome.trim(), unidade: editUnidade.trim() });
+      updateUsuario(response.usuario);
       setEditMode(false);
       Alert.alert('Sucesso', 'Perfil atualizado com sucesso');
     } catch (error: any) {
       Alert.alert('Erro', error.message || 'Erro ao atualizar perfil');
+    } finally {
+      setSavingProfile(false);
     }
   };
 
@@ -148,8 +153,8 @@ export default function ProfileScreen() {
 
         {editMode && (
           <View style={styles.editActions}>
-            <Button title="Cancelar" onPress={() => setEditMode(false)} variant="outline" fullWidth />
-            <Button title="Salvar" onPress={handleSaveProfile} fullWidth />
+            <Button title="Cancelar" onPress={() => { setEditNome(usuario.nome); setEditUnidade(usuario.unidade); setEditMode(false); }} variant="outline" fullWidth />
+            <Button title="Salvar" onPress={handleSaveProfile} loading={savingProfile} fullWidth />
           </View>
         )}
       </Card>
@@ -279,7 +284,7 @@ const renderPedidoResumido = (pedido: Pedido, router: any) => (
       </View>
     </View>
     <View style={styles.resumoFooter}>
-      <Text style={styles.resumoValue}>R$ {pedido.valorTotal.toFixed(2).replace('.', ',')}</Text>
+      <Text style={styles.resumoValue}>{formatBRL(pedido.valorTotal)}</Text>
       <Text style={styles.resumoItems}>{pedido.itens.length} item(ns)</Text>
     </View>
   </TouchableOpacity>
@@ -292,7 +297,7 @@ const renderProdutoResumido = (produto: Produto, router: any) => (
         <Text style={styles.resumoTitle}>{produto.nome}</Text>
         <Text style={styles.resumoDate}>{produto.categoria} • {STATUS_LABELS[produto.status]}</Text>
       </View>
-      <Text style={styles.resumoPrice}>R$ {produto.preco.toFixed(2).replace('.', ',')}</Text>
+      <Text style={styles.resumoPrice}>{formatBRL(produto.preco)}</Text>
     </View>
   </TouchableOpacity>
 );

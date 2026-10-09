@@ -5,22 +5,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
 import { Card, Button, Avatar, Input } from '../../components/ui';
-import { STATUS_LABELS } from '../../constants';
+import { STATUS_LABELS, CATEGORIAS } from '../../constants';
 import { Produto } from '../../types';
+import { formatBRL } from '../../utils/format';
 
 export default function SellerScreen() {
   const router = useRouter();
   const { isVendedor } = useAuth();
   const { getMeusProdutos, createProduto, updateProdutoStatus, deleteProduto } = useApi();
-
-  if (!isVendedor) {
-    return (
-      <View style={styles.unauthorizedContainer}>
-        <Ionicons name="lock-closed-outline" size={48} color="#D1E3F0" />
-        <Text style={styles.unauthorizedText}>Acesso restrito a vendedores</Text>
-      </View>
-    );
-  }
 
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +26,7 @@ export default function SellerScreen() {
     nome: '',
     descricao: '',
     preco: '',
-    categoria: 'Alimentos',
+    categoria: CATEGORIAS[0],
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -62,8 +54,8 @@ export default function SellerScreen() {
   }, [getMeusProdutos, statusFilter]);
 
   useEffect(() => {
-    carregarProdutos(1, true);
-  }, [statusFilter]);
+    if (isVendedor) carregarProdutos(1, true);
+  }, [statusFilter, isVendedor]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -97,7 +89,7 @@ export default function SellerScreen() {
         categoria: formData.categoria,
       });
       setShowCreateModal(false);
-      setFormData({ nome: '', descricao: '', preco: '', categoria: 'Alimentos' });
+      setFormData({ nome: '', descricao: '', preco: '', categoria: CATEGORIAS[0] });
       carregarProdutos(1, true);
       Alert.alert('Sucesso', 'Produto criado com sucesso!');
     } catch (error: any) {
@@ -156,7 +148,7 @@ export default function SellerScreen() {
       <View style={styles.produtoHeader}>
         <View style={styles.produtoMain}>
           <Text style={styles.produtoNome} numberOfLines={1}>{item.nome}</Text>
-          <Text style={styles.produtoCategoria}>{item.categoria} • R$ {item.preco.toFixed(2).replace('.', ',')}</Text>
+          <Text style={styles.produtoCategoria}>{item.categoria} • {formatBRL(item.preco)}</Text>
         </View>
         {renderStatusBadge(item.status)}
       </View>
@@ -200,6 +192,15 @@ export default function SellerScreen() {
   );
 
   const statusOptions = ['TODOS', 'ATIVO', 'PAUSADO', 'QUARENTENA', 'EXCLUIDO'];
+
+  if (!isVendedor) {
+    return (
+      <View style={styles.unauthorizedContainer}>
+        <Ionicons name="lock-closed-outline" size={48} color="#D1E3F0" />
+        <Text style={styles.unauthorizedText}>Acesso restrito a vendedores</Text>
+      </View>
+    );
+  }
 
   if (loading && produtos.length === 0) {
     return (
@@ -317,7 +318,7 @@ export default function SellerScreen() {
 
               <Text style={styles.modalLabel}>Categoria *</Text>
               <View style={styles.categoriaGrid}>
-                {['Alimentos', 'Bebidas', 'Limpeza', 'Higiene', 'Papelaria', 'Eletrônicos', 'Roupas', 'Outros'].map((cat) => (
+                {CATEGORIAS.map((cat) => (
                   <TouchableOpacity
                     key={cat}
                     style={[

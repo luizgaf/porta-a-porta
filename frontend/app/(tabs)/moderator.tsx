@@ -4,23 +4,14 @@ import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
-import { Card, Button } from '../../components/ui';
+import { Card, Button, Input } from '../../components/ui';
 import { STATUS_LABELS } from '../../constants';
 import { Denuncia, Produto } from '../../types';
 
 export default function ModeratorScreen() {
   const router = useRouter();
   const { isSindico } = useAuth();
-  const { getDenuncias, getDenunciasProduto, updateDenunciaStatus } = useApi();
-
-  if (!isSindico) {
-    return (
-      <View style={styles.unauthorizedContainer}>
-        <Ionicons name="lock-closed-outline" size={48} color="#D1E3F0" />
-        <Text style={styles.unauthorizedText}>Acesso restrito ao síndico</Text>
-      </View>
-    );
-  }
+  const { getDenuncias, getDenunciasProduto, updateDenunciaStatus, getProduto } = useApi();
 
   const [denuncias, setDenuncias] = useState<Denuncia[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +22,9 @@ export default function ModeratorScreen() {
   const [denunciasProduto, setDenunciasProduto] = useState<Denuncia[]>([]);
   const [loadingDenunciasProduto, setLoadingDenunciasProduto] = useState(false);
   const [produtoDetalhe, setProdutoDetalhe] = useState<Produto | null>(null);
+  const [acaoPendente, setAcaoPendente] = useState<'QUARENTENA' | 'RESTAURAR' | null>(null);
+  const [justificativa, setJustificativa] = useState('');
+  const [processando, setProcessando] = useState(false);
 
   const carregarDenuncias = useCallback(async (paginaAtual = 1, isRefresh = false) => {
     if (!isRefresh) setLoading(true);
@@ -53,8 +47,8 @@ export default function ModeratorScreen() {
   }, [getDenuncias]);
 
   useEffect(() => {
-    carregarDenuncias(1, true);
-  }, []);
+    if (isSindico) carregarDenuncias(1, true);
+  }, [isSindico]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -67,13 +61,26 @@ export default function ModeratorScreen() {
     }
   };
 
+  const fecharDetalhe = () => {
+    setSelectedDenuncia(null);
+    setAcaoPendente(null);
+    setJustificativa('');
+  };
+
   const handleViewDenuncias = async (denuncia: Denuncia) => {
     setSelectedDenuncia(denuncia);
+    setProdutoDetalhe(denuncia.produto as Produto);
+    setAcaoPendente(null);
+    setJustificativa('');
     setLoadingDenunciasProduto(true);
     try {
-      const response = await getDenunciasProduto(denuncia.produtoId);
-      setDenunciasProduto(response.denuncias);
-      setProdutoDetalhe(denuncia.produto as Produto);
+      // A listagem de denúncias não traz o status do produto; busca o produto para saber se já está em quarentena
+      const [denunciasResponse, produtoResponse] = await Promise.all([
+        getDenunciasProduto(denuncia.produtoId),
+        getProduto(denuncia.produtoId),
+      ]);
+      setDenunciasProduto(denunciasResponse.denuncias);
+      setProdutoDetalhe(produtoResponse.produto);
     } catch (error) {
       console.error('Erro ao carregar denúncias do produto:', error);
     } finally {
@@ -81,48 +88,31 @@ export default function ModeratorScreen() {
     }
   };
 
-  const handleQuarentena = async (acao: 'QUARENTENA' | 'RESTAURAR') => {
-    if (!selectedDenuncia) return;
+  const handleQuarentena = async () => {
+    if (!selectedDenuncia || !acaoPendente) return;
+    const acao = acaoPendente;
+    const novoStatus = acao === 'QUARENTENA' ? 'QUARENTENA' : 'ATIVO';
 
-    const justificativa = await promptJustificativa(acao);
-    if (justificativa === null) return; // User cancelled
-
+    setProcessando(true);
     try {
-      await updateDenunciaStatus(selectedDenuncia.produtoId, { acao, justificativa });
+      await updateDenunciaStatus(selectedDenuncia.produtoId, {
+        acao,
+        justificativa: justificativa.trim() || undefined,
+      });
       Alert.alert('Sucesso', `Produto ${acao === 'QUARENTENA' ? 'colocado em quarentena' : 'restaurado'}`);
-
-      // Update local state
       setDenuncias(prev =>
         prev.map(d =>
           d.produtoId === selectedDenuncia.produtoId
-            ? { ...d, produto: { ...d.produto!, status: acao === 'QUARENTENA' ? 'QUARENTENA' : 'ATIVO' } }
+            ? { ...d, produto: { ...d.produto!, status: novoStatus } }
             : d
         )
       );
-
-      if (produtoDetalhe) {
-        setProdutoDetalhe({ ...produtoDetalhe, status: acao === 'QUARENTENA' ? 'QUARENTENA' : 'ATIVO' });
-      }
-
-      setSelectedDenuncia(null);
+      fecharDetalhe();
     } catch (error: any) {
       Alert.alert('Erro', error.message || 'Erro ao processar ação');
+    } finally {
+      setProcessando(false);
     }
-  };
-
-  const promptJustificativa = (acao: 'QUARENTENA' | 'RESTAURAR'): Promise<string | null> => {
-    return new Promise((resolve) => {
-      Alert.prompt(
-        acao === 'QUARENTENA' ? 'Colocar em Quarentena' : 'Restaurar Produto',
-        `Digite a justificativa para ${acao === 'QUARENTENA' ? 'colocar em quarentena' : 'restaurar'} este produto:`,
-        [
-          { text: 'Cancelar', style: 'cancel', onPress: () => resolve(null) },
-          { text: 'Confirmar', onPress: (text?: string) => resolve(text || '') },
-        ],
-        'plain-text',
-        ''
-      );
-    });
   };
 
   const renderStatusBadge = (status: string) => (
@@ -140,7 +130,7 @@ export default function ModeratorScreen() {
       <View style={styles.denunciaHeader}>
         <View style={styles.denunciaProduto}>
           <Text style={styles.denunciaProdutoNome}>{item.produto?.nome || 'Produto'}</Text>
-          {renderStatusBadge(item.produto?.status || 'ATIVO')}
+          {item.produto?.status ? renderStatusBadge(item.produto.status) : null}
         </View>
         <View style={styles.denunciaMeta}>
           <Text style={styles.denunciaDenunciante}>Denúncia anônima</Text>
@@ -163,6 +153,15 @@ export default function ModeratorScreen() {
       </View>
     </TouchableOpacity>
   );
+
+  if (!isSindico) {
+    return (
+      <View style={styles.unauthorizedContainer}>
+        <Ionicons name="lock-closed-outline" size={48} color="#D1E3F0" />
+        <Text style={styles.unauthorizedText}>Acesso restrito ao síndico</Text>
+      </View>
+    );
+  }
 
   if (loading && denuncias.length === 0) {
     return (
@@ -212,15 +211,16 @@ export default function ModeratorScreen() {
 
       {/* Detail Modal */}
       {selectedDenuncia && (
-        <Modal visible={true} animationType="slide" transparent={true} onRequestClose={() => setSelectedDenuncia(null)}>
-          <TouchableOpacity style={styles.modalOverlay} onPress={() => setSelectedDenuncia(null)} activeOpacity={1}>
-            <View style={styles.modalContent}>
+        <Modal visible={true} animationType="slide" transparent={true} onRequestClose={fecharDetalhe}>
+          <TouchableOpacity style={styles.modalOverlay} onPress={fecharDetalhe} activeOpacity={1}>
+            {/* Captura o toque para não fechar o modal ao interagir com o conteúdo */}
+            <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
               <View style={styles.modalHeader}>
                 <View style={styles.modalTitleContainer}>
                   <Text style={styles.modalTitle}>{produtoDetalhe?.nome || 'Produto'}</Text>
                   {produtoDetalhe && renderStatusBadge(produtoDetalhe.status)}
                 </View>
-                <TouchableOpacity onPress={() => setSelectedDenuncia(null)}>
+                <TouchableOpacity onPress={fecharDetalhe}>
                   <Ionicons name="close" size={24} color="#6C7A8A" />
                 </TouchableOpacity>
               </View>
@@ -252,12 +252,33 @@ export default function ModeratorScreen() {
                 </View>
 
                 <View style={styles.modalActions}>
-                  <Button
-                    title={produtoDetalhe?.status === 'QUARENTENA' ? 'Restaurar Produto' : 'Colocar em Quarentena'}
-                    onPress={() => handleQuarentena(produtoDetalhe?.status === 'QUARENTENA' ? 'RESTAURAR' : 'QUARENTENA')}
-                    variant={produtoDetalhe?.status === 'QUARENTENA' ? 'primary' : 'danger'}
-                    fullWidth
-                  />
+                  {acaoPendente ? (
+                    <>
+                      <Input
+                        label="Justificativa (opcional)"
+                        placeholder={acaoPendente === 'QUARENTENA' ? 'Por que suspender este produto?' : 'Por que restaurar este produto?'}
+                        value={justificativa}
+                        onChangeText={setJustificativa}
+                        multiline
+                      />
+                      <Button
+                        title={acaoPendente === 'QUARENTENA' ? 'Confirmar Quarentena' : 'Confirmar Restauração'}
+                        onPress={handleQuarentena}
+                        variant={acaoPendente === 'QUARENTENA' ? 'danger' : 'primary'}
+                        loading={processando}
+                        fullWidth
+                      />
+                      <Button title="Cancelar" onPress={() => setAcaoPendente(null)} variant="ghost" fullWidth />
+                    </>
+                  ) : (
+                    <Button
+                      title={produtoDetalhe?.status === 'QUARENTENA' ? 'Restaurar Produto' : 'Colocar em Quarentena'}
+                      onPress={() => setAcaoPendente(produtoDetalhe?.status === 'QUARENTENA' ? 'RESTAURAR' : 'QUARENTENA')}
+                      variant={produtoDetalhe?.status === 'QUARENTENA' ? 'primary' : 'danger'}
+                      disabled={loadingDenunciasProduto}
+                      fullWidth
+                    />
+                  )}
                 </View>
               </ScrollView>
             </View>
@@ -484,5 +505,6 @@ const styles = StyleSheet.create({
   },
   modalActions: {
     paddingTop: 10,
+    gap: 10,
   },
 });
