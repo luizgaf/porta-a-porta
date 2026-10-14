@@ -33,6 +33,31 @@ async function main() {
     })
   );
 
+  // Cria ou atualiza um usuário de teste. Procura pelo CPF e depois pelo e-mail, para também
+  // corrigir bancos criados por versões antigas do seed (mesmo CPF com outro e-mail, ou o contrário).
+  // E-mail, senha e demais dados sempre voltam aos valores documentados.
+  type UsuarioSeed = {
+    cpf: string;
+    email: string;
+    nome: string;
+    senhaHash: string;
+    unidade: string;
+    tipo: 'SINDICO' | 'COMPRADOR' | 'VENDEDOR';
+    condominioId: string;
+  };
+
+  const garantirUsuario = async (dados: UsuarioSeed) => {
+    const existente =
+      (await prisma.usuario.findUnique({ where: { cpf: dados.cpf } })) ??
+      (await prisma.usuario.findUnique({ where: { email: dados.email } }));
+
+    if (existente) {
+      await prisma.usuario.update({ where: { id: existente.id }, data: dados });
+    } else {
+      await prisma.usuario.create({ data: dados });
+    }
+  };
+
   // Síndico para cada condomínio
   const senhaHash = await bcrypt.hash('sindico123', 10);
   const usuarios: { condominioId: string; email: string; nome: string; unidade: string }[] =
@@ -47,24 +72,14 @@ async function main() {
 
     usuarios.push({ condominioId: condominios[i].id, email, nome, unidade });
 
-    await prisma.usuario.upsert({
-      where: { email },
-      update: {
-        nome,
-        senhaHash,
-        unidade,
-        tipo: 'SINDICO',
-        condominioId: condominios[i].id,
-      },
-      create: {
-        email,
-        nome,
-        senhaHash,
-        cpf,
-        unidade,
-        tipo: 'SINDICO',
-        condominioId: condominios[i].id,
-      },
+    await garantirUsuario({
+      cpf,
+      email,
+      nome,
+      senhaHash,
+      unidade,
+      tipo: 'SINDICO',
+      condominioId: condominios[i].id,
     });
   }
 
@@ -72,32 +87,24 @@ async function main() {
   const compradorSenha = await bcrypt.hash('comprador123', 10);
   const vendedorSenha = await bcrypt.hash('vendedor123', 10);
 
-  await prisma.usuario.upsert({
-    where: { email: 'comprador1@pap.com' },
-    update: {},
-    create: {
-      email: 'comprador1@pap.com',
-      nome: 'João Comprador',
-      senhaHash: compradorSenha,
-      cpf: '11111111101',
-      unidade: 'Apto 101',
-      tipo: 'COMPRADOR',
-      condominioId: condominios[0].id,
-    },
+  await garantirUsuario({
+    cpf: '11111111101',
+    email: 'comprador1@pap.com',
+    nome: 'João Comprador',
+    senhaHash: compradorSenha,
+    unidade: 'Apto 101',
+    tipo: 'COMPRADOR',
+    condominioId: condominios[0].id,
   });
 
-  await prisma.usuario.upsert({
-    where: { email: 'vendedor1@pap.com' },
-    update: {},
-    create: {
-      email: 'vendedor1@pap.com',
-      nome: 'Maria Vendedora',
-      senhaHash: vendedorSenha,
-      cpf: '11111111102',
-      unidade: 'Apto 202',
-      tipo: 'VENDEDOR',
-      condominioId: condominios[0].id,
-    },
+  await garantirUsuario({
+    cpf: '11111111102',
+    email: 'vendedor1@pap.com',
+    nome: 'Maria Vendedora',
+    senhaHash: vendedorSenha,
+    unidade: 'Apto 202',
+    tipo: 'VENDEDOR',
+    condominioId: condominios[0].id,
   });
 
   // Produtos de teste para o vendedor1 no condomínio 1
