@@ -21,6 +21,13 @@ interface AuthState {
   hasRole: (...roles: TipoUsuario[]) => boolean;
 }
 
+// Hierarquia de perfis (a mesma de backend/src/middleware/auth.ts)
+export const PERFIS_HERDADOS: Record<TipoUsuario, TipoUsuario[]> = {
+  COMPRADOR: ['COMPRADOR'],
+  VENDEDOR: ['COMPRADOR', 'VENDEDOR'],
+  SINDICO: ['COMPRADOR', 'VENDEDOR', 'SINDICO'],
+};
+
 const customStorage = {
   getItem: async (name: string): Promise<string | null> => {
     return await AsyncStorage.getItem(name);
@@ -82,9 +89,10 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
+      // Com herança, igual à API: vendedor também é comprador; síndico também é vendedor e comprador
       hasRole: (...roles: TipoUsuario[]) => {
         const { usuario } = get();
-        return usuario ? roles.includes(usuario.tipo) : false;
+        return usuario ? roles.some((perfil) => PERFIS_HERDADOS[usuario.tipo].includes(perfil)) : false;
       },
     }),
     {

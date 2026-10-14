@@ -1,5 +1,42 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
+import { pastaDeImagens, extensaoPelaAssinatura, TAMANHO_MAXIMO_IMAGEM, PREFIXO_URL_IMAGENS } from '../src/services/imagens';
+
+// Fotos padrão dos produtos de teste: prisma/seed-images/<nome-do-produto>.jpg (ver o README da pasta)
+const PASTA_FOTOS_SEED = path.join(__dirname, 'seed-images');
+
+// "Pão de Queijo" -> "pao-de-queijo"
+const nomeDoArquivo = (nomeProduto: string) =>
+  nomeProduto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+// Copia a foto do produto para a pasta de uploads e devolve a URL, ou null se não houver foto válida
+const copiarFotoSeed = (nomeProduto: string): string | null => {
+  const base = nomeDoArquivo(nomeProduto);
+  const arquivo = ['jpg', 'jpeg', 'png', 'webp']
+    .map((ext) => path.join(PASTA_FOTOS_SEED, `${base}.${ext}`))
+    .find((caminho) => fs.existsSync(caminho));
+  if (!arquivo) return null;
+
+  const conteudo = fs.readFileSync(arquivo);
+  const extensao = extensaoPelaAssinatura(conteudo);
+  if (!extensao || conteudo.length > TAMANHO_MAXIMO_IMAGEM) {
+    console.warn(`⚠️  Foto ignorada (precisa ser JPEG, PNG ou WebP de até 5 MB): ${path.basename(arquivo)}`);
+    return null;
+  }
+
+  // Nome fixo, para não acumular cópias quando o seed roda de novo
+  const destino = `seed-${base}.${extensao}`;
+  fs.mkdirSync(pastaDeImagens(), { recursive: true });
+  fs.writeFileSync(path.join(pastaDeImagens(), destino), conteudo);
+  return `${PREFIXO_URL_IMAGENS}/${destino}`;
+};
 
 const senhaHash = async (senha: string) => bcrypt.hash(senha, 10);
 
@@ -33,6 +70,31 @@ async function main() {
     })
   );
 
+  // Cria ou atualiza um usuário de teste. Procura pelo CPF e depois pelo e-mail, para também
+  // corrigir bancos criados por versões antigas do seed (mesmo CPF com outro e-mail, ou o contrário).
+  // E-mail, senha e demais dados sempre voltam aos valores documentados.
+  type UsuarioSeed = {
+    cpf: string;
+    email: string;
+    nome: string;
+    senhaHash: string;
+    unidade: string;
+    tipo: 'SINDICO' | 'COMPRADOR' | 'VENDEDOR';
+    condominioId: string;
+  };
+
+  const garantirUsuario = async (dados: UsuarioSeed) => {
+    const existente =
+      (await prisma.usuario.findUnique({ where: { cpf: dados.cpf } })) ??
+      (await prisma.usuario.findUnique({ where: { email: dados.email } }));
+
+    if (existente) {
+      await prisma.usuario.update({ where: { id: existente.id }, data: dados });
+    } else {
+      await prisma.usuario.create({ data: dados });
+    }
+  };
+
   // Síndico para cada condomínio
   const senhaHash = await bcrypt.hash('sindico123', 10);
   const usuarios: { condominioId: string; email: string; nome: string; unidade: string }[] =
@@ -47,24 +109,14 @@ async function main() {
 
     usuarios.push({ condominioId: condominios[i].id, email, nome, unidade });
 
-    await prisma.usuario.upsert({
-      where: { email },
-      update: {
-        nome,
-        senhaHash,
-        unidade,
-        tipo: 'SINDICO',
-        condominioId: condominios[i].id,
-      },
-      create: {
-        email,
-        nome,
-        senhaHash,
-        cpf,
-        unidade,
-        tipo: 'SINDICO',
-        condominioId: condominios[i].id,
-      },
+    await garantirUsuario({
+      cpf,
+      email,
+      nome,
+      senhaHash,
+      unidade,
+      tipo: 'SINDICO',
+      condominioId: condominios[i].id,
     });
   }
 
@@ -72,38 +124,32 @@ async function main() {
   const compradorSenha = await bcrypt.hash('comprador123', 10);
   const vendedorSenha = await bcrypt.hash('vendedor123', 10);
 
-  await prisma.usuario.upsert({
-    where: { email: 'comprador1@pap.com' },
-    update: {},
-    create: {
-      email: 'comprador1@pap.com',
-      nome: 'João Comprador',
-      senhaHash: compradorSenha,
-      cpf: '11111111101',
-      unidade: 'Apto 101',
-      tipo: 'COMPRADOR',
-      condominioId: condominios[0].id,
-    },
+  await garantirUsuario({
+    cpf: '11111111101',
+    email: 'comprador1@pap.com',
+    nome: 'João Comprador',
+    senhaHash: compradorSenha,
+    unidade: 'Apto 101',
+    tipo: 'COMPRADOR',
+    condominioId: condominios[0].id,
   });
 
-  await prisma.usuario.upsert({
-    where: { email: 'vendedor1@pap.com' },
-    update: {},
-    create: {
-      email: 'vendedor1@pap.com',
-      nome: 'Maria Vendedora',
-      senhaHash: vendedorSenha,
-      cpf: '11111111102',
-      unidade: 'Apto 202',
-      tipo: 'VENDEDOR',
-      condominioId: condominios[0].id,
-    },
+  await garantirUsuario({
+    cpf: '11111111102',
+    email: 'vendedor1@pap.com',
+    nome: 'Maria Vendedora',
+    senhaHash: vendedorSenha,
+    unidade: 'Apto 202',
+    tipo: 'VENDEDOR',
+    condominioId: condominios[0].id,
   });
 
   // Produtos de teste para o vendedor1 no condomínio 1
   const produtos = [
     {
-      nome: 'Café Torrado Especia',
+      nome: 'Café Torrado Especial',
+      // id do nome antigo (com erro de digitação), para o produto não ser duplicado em bancos já populados
+      idSeed: 'seed-prod-café-torrado-especia',
       descricao: 'Café torrado especial 500g - sachê de papel',
       preco: 18.5,
       categoria: 'Bebidas',
@@ -157,8 +203,9 @@ async function main() {
       condominioId: condominios[0].id,
     },
     {
-      nome: 'Ovos de Codornin',
-      descricao: 'Ovos de codornin frescos - bandejada com 15 unidades',
+      nome: 'Ovos de Codorna',
+      idSeed: 'seed-prod-ovos-de-codornin',
+      descricao: 'Ovos de codorna frescos - bandeja com 15 unidades',
       preco: 28.0,
       categoria: 'Ovos & Carnes',
       status: 'ATIVO',
@@ -244,18 +291,31 @@ async function main() {
     where: { email: 'vendedor1@pap.com' },
   });
 
+  let fotos = 0;
   for (const produto of produtos) {
+    // O mesmo id no where e no create, para o seed poder ser executado mais de uma vez
+    const id = produto.idSeed ?? `seed-prod-${produto.nome.toLowerCase().replace(/\s+/g, '-')}`;
+
+    // Usa a foto padrão, sem substituir uma foto que o vendedor já tenha enviado pelo app
+    const fotoSeed = copiarFotoSeed(produto.nome);
+    const atual = await prisma.produto.findUnique({ where: { id }, select: { imagemUrl: true } });
+    const podeTrocarFoto = !atual?.imagemUrl || atual.imagemUrl.startsWith(`${PREFIXO_URL_IMAGENS}/seed-`);
+    const imagemUrl = fotoSeed && podeTrocarFoto ? fotoSeed : undefined;
+    if (imagemUrl) fotos++;
+
     await prisma.produto.upsert({
-      where: { id: `seed-prod-${produto.nome}` },
+      where: { id },
       update: {
         nome: produto.nome,
         descricao: produto.descricao,
         preco: produto.preco,
         categoria: produto.categoria,
         status: produto.status,
+        ...(imagemUrl ? { imagemUrl } : {}),
       },
       create: {
-        id: `seed-prod-${produto.nome.toLowerCase().replace(/\s+/g, '-')}`,
+        id,
+        imagemUrl,
         nome: produto.nome,
         descricao: produto.descricao,
         preco: produto.preco,
@@ -273,7 +333,7 @@ async function main() {
   console.log('   - 1 comprador criado (comprador1@pap.com / comprador123)');
   console.log('   - 1 vendedor criado (vendedor1@pap.com / vendedor123)');
   console.log(`   - Síndico 1: sindico1@pap.com / sindico123`);
-  console.log(`   - ${produtos.length} produtos criados`);
+  console.log(`   - ${produtos.length} produtos criados (${fotos} com foto padrão)`);
 }
 
 main()

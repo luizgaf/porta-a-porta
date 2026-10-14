@@ -79,6 +79,21 @@ export const authMiddleware = async (
   }
 };
 
+// Hierarquia de perfis: cada perfil herda as permissões do anterior, como em "extends".
+//   COMPRADOR: compra, avalia e denuncia
+//   VENDEDOR extends COMPRADOR: também anuncia produtos e atende pedidos
+//   SINDICO extends VENDEDOR: também modera denúncias e avaliações
+export const PERFIS_HERDADOS: Record<TipoUsuario, TipoUsuario[]> = {
+  COMPRADOR: ['COMPRADOR'],
+  VENDEDOR: ['COMPRADOR', 'VENDEDOR'],
+  SINDICO: ['COMPRADOR', 'VENDEDOR', 'SINDICO'],
+};
+
+// true se o tipo do usuário é o perfil pedido ou herda dele
+export const temPerfil = (tipo: TipoUsuario, perfil: TipoUsuario) => PERFIS_HERDADOS[tipo].includes(perfil);
+
+// Libera a rota para quem tem (ou herda) algum dos perfis informados.
+// Ex.: requireRole('COMPRADOR') aceita comprador, vendedor e síndico.
 export const requireRole = (...roles: TipoUsuario[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
@@ -88,7 +103,7 @@ export const requireRole = (...roles: TipoUsuario[]) => {
       });
     }
 
-    if (!roles.includes(req.user.tipo)) {
+    if (!roles.some((perfil) => temPerfil(req.user!.tipo, perfil))) {
       return res.status(403).json({
         error: 'Acesso negado: permissão insuficiente',
         code: 'FORBIDDEN',

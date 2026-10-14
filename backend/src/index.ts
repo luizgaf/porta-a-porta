@@ -7,13 +7,15 @@ import { PrismaClient } from '@prisma/client';
 import { errorHandler } from './middleware/errorHandler';
 import { authMiddleware } from './middleware/auth';
 import { setupRoutes } from './routes';
+import { pastaDeImagens, PREFIXO_URL_IMAGENS } from './services/imagens';
 
 const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 
 // Middlewares globais
-app.use(helmet());
+// As fotos dos produtos são carregadas pelo app, que roda em outra origem
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
 // Request logging (real-time HTTP log)
 const logFormat = process.env.NODE_ENV === 'production'
@@ -52,6 +54,9 @@ app.use(express.urlencoded({ extended: true }));
 
 // Disponibiliza Prisma no app
 app.set('prisma', prisma);
+
+// Fotos dos produtos (nomes aleatórios, sem listagem de pasta)
+app.use(PREFIXO_URL_IMAGENS, express.static(pastaDeImagens(), { index: false, maxAge: '7d' }));
 
 // Health check
 app.get('/health', (req, res) => {

@@ -3,12 +3,13 @@ import { z } from 'zod';
 import { PrismaClient } from '@prisma/client';
 import { asyncHandler, AppError } from '../middleware/errorHandler';
 import { authMiddleware, AuthRequest, requireRole } from '../middleware/auth';
+import { notificar } from '../services/notificacoes';
 
 const router = Router();
 const prisma = new PrismaClient();
 
 const createDenunciaSchema = z.object({
-  produtoId: z.string().uuid('ID do produto inválido'),
+  produtoId: z.string().min(1, 'ID do produto inválido'),
   motivo: z.string().min(10, 'Motivo deve ter pelo menos 10 caracteres').max(500),
 });
 
@@ -70,9 +71,6 @@ router.post('/', authMiddleware, asyncHandler(async (req: AuthRequest, res: Resp
         produto: {
           select: { id: true, nome: true },
         },
-        denunciante: {
-          select: { id: true, nome: true, unidade: true },
-        },
       },
     });
 
@@ -81,11 +79,35 @@ router.post('/', authMiddleware, asyncHandler(async (req: AuthRequest, res: Resp
       where: { produtoId: data.produtoId },
     });
 
-    if (count >= 3) {
+    if (count >= 3 && produto.status !== 'QUARENTENA') {
       await prisma.produto.update({
         where: { id: data.produtoId },
         data: { status: 'QUARENTENA' },
       });
+
+      // RN02 (a): alerta ao síndico para análise humana e aviso ao vendedor, sem identificar denunciantes
+      const sindicos = await prisma.usuario.findMany({
+        where: { condominioId: req.user!.condominioId, tipo: 'SINDICO' },
+        select: { id: true },
+      });
+      await notificar(prisma, [
+        ...(sindicos ?? []).map((sindico: { id: string }) => ({
+          condominioId: req.user!.condominioId,
+          usuarioId: sindico.id,
+          tipo: 'DENUNCIA_PARA_ANALISE' as const,
+          mensagem: `O anúncio "${produto.nome}" recebeu ${count} denúncias e foi suspenso automaticamente. Analise no painel de moderação.`,
+          entidadeTipo: 'PRODUTO' as const,
+          entidadeId: produto.id,
+        })),
+        {
+          condominioId: req.user!.condominioId,
+          usuarioId: produto.vendedorId,
+          tipo: 'ANUNCIO_QUARENTENA' as const,
+          mensagem: `Seu anúncio "${produto.nome}" foi suspenso por denúncias e aguarda a análise do síndico.`,
+          entidadeTipo: 'PRODUTO' as const,
+          entidadeId: produto.id,
+        },
+      ]);
     }
 
     res.status(201).json({ denuncia });
@@ -207,6 +229,18 @@ router.patch('/:produtoId/quarentena', authMiddleware, requireRole('SINDICO'), a
       justificativa: justificativa || `Produto movido para ${novoStatus} pelo síndico`,
     },
   });
+
+  // Aviso ao vendedor sobre a decisão do síndico
+  await notificar(prisma, [{
+    condominioId: produto.condominioId,
+    usuarioId: produto.vendedorId,
+    tipo: acao === 'QUARENTENA' ? 'ANUNCIO_QUARENTENA' : 'ANUNCIO_RESTAURADO',
+    mensagem: acao === 'QUARENTENA'
+      ? `O síndico manteve seu anúncio "${produto.nome}" suspenso.`
+      : `Seu anúncio "${produto.nome}" foi restaurado pelo síndico e voltou para a vitrine.`,
+    entidadeTipo: 'PRODUTO',
+    entidadeId: produto.id,
+  }]);
 
   res.json({
     message: acao === 'QUARENTENA' ? 'Produto colocado em quarentena' : 'Produto restaurado',

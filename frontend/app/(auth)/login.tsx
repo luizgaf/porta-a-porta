@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, TouchableOpacity, ScrollView } from 'react-native';
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
-import { Input, Button, Card } from '../../components/ui';
-import { colors, spacing, typography, borderRadius, layout } from '../../constants/design';
+import { Input, Button } from '../../components/ui';
+import { AuthHeader } from '../../components/auth/AuthHeader';
+import { MensagemErro } from '../../components/auth/MensagemErro';
+import { colors, spacing, typography } from '../../constants/design';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -12,41 +15,37 @@ export default function LoginScreen() {
   const { login: loginApi } = useApi();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const [mostrarSenha, setMostrarSenha] = useState(false);
   const [error, setError] = useState('');
 
   const handleLogin = async () => {
-    if (!email || !senha) {
-      setError('Preencha todos os campos');
+    const emailLimpo = email.trim().toLowerCase();
+    if (!emailLimpo || !senha) {
+      setError('Informe o e-mail e a senha.');
       return;
     }
     setError('');
     setLoading(true);
     try {
-      await loginApi({ email, senha });
+      await loginApi({ email: emailLimpo, senha });
       router.replace('/(tabs)/home');
     } catch (err: any) {
-      setError(err.message || 'Erro ao fazer login');
+      setError(err.message || 'Não foi possível entrar. Tente novamente.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.header}>
-          <Text style={styles.title}>Bem-vindo(a)</Text>
-          <Text style={styles.subtitle}>Digite suas credenciais para continuar</Text>
-        </View>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
+      <ScrollView contentContainerStyle={styles.conteudo} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <AuthHeader
+          titulo="Entrar"
+          subtitulo="Use o e-mail cadastrado no seu condomínio."
+          onVoltar={router.canGoBack() ? () => router.back() : undefined}
+        />
 
-        <Card style={styles.formCard}>
+        <View style={styles.formulario}>
           <Input
             label="E-mail"
             placeholder="seu@email.com"
@@ -54,36 +53,44 @@ export default function LoginScreen() {
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
+            autoCorrect={false}
             autoComplete="email"
+            textContentType="emailAddress"
+            leftIcon={<Ionicons name="mail-outline" size={20} color={colors.mutedSlate} />}
           />
 
           <Input
             label="Senha"
-            placeholder="••••••••"
+            placeholder="Sua senha"
             value={senha}
             onChangeText={setSenha}
-            secureTextEntry
+            secureTextEntry={!mostrarSenha}
             autoComplete="password"
+            textContentType="password"
+            onSubmitEditing={handleLogin}
+            returnKeyType="go"
+            leftIcon={<Ionicons name="lock-closed-outline" size={20} color={colors.mutedSlate} />}
+            rightIcon={
+              <TouchableOpacity
+                onPress={() => setMostrarSenha((v) => !v)}
+                accessibilityLabel={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
+                hitSlop={8}
+              >
+                <Ionicons name={mostrarSenha ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.mutedSlate} />
+              </TouchableOpacity>
+            }
           />
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          <MensagemErro texto={error} />
 
-          <Button
-            title="Entrar"
-            onPress={handleLogin}
-            loading={isLoading}
-            fullWidth
-            size="lg"
-          />
-        </Card>
+          <Button title="Entrar" onPress={handleLogin} loading={isLoading} fullWidth size="lg" style={styles.botao} />
+        </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Não tem conta? </Text>
-          <Link href="/(auth)/community-selection" asChild>
-            <TouchableOpacity>
-              <Text style={styles.link}>Cadastre-se</Text>
-            </TouchableOpacity>
-          </Link>
+        <View style={styles.rodape}>
+          <Text style={styles.rodapeTexto}>Ainda não tem conta?</Text>
+          <TouchableOpacity onPress={() => router.push('/(auth)/role-selection')} hitSlop={8}>
+            <Text style={styles.link}>Criar conta</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -95,48 +102,32 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollContent: {
+  conteudo: {
     flexGrow: 1,
-    paddingHorizontal: layout.screenPadding,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
-    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
   },
-  header: {
-    marginBottom: spacing.lg,
-    alignItems: 'center',
+  formulario: {
+    gap: spacing.md,
   },
-  title: {
-    ...typography.displaySmall,
-    color: colors.portaNavy,
-    marginBottom: spacing.xs,
+  botao: {
+    marginTop: spacing.sm,
   },
-  subtitle: {
-    ...typography.bodyMedium,
-    color: colors.mutedSlate,
-  },
-  formCard: {
-    marginBottom: spacing.lg,
-  },
-  errorText: {
-    ...typography.bodySmall,
-    color: colors.error,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
-  footer: {
+  rodape: {
     flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center',
     gap: spacing.xs,
+    marginTop: spacing.xl,
   },
-  footerText: {
-    ...typography.bodyMedium,
-    color: colors.mutedSlate,
+  rodapeTexto: {
+    fontFamily: typography.bodyMedium.fontFamily,
+    fontSize: typography.bodyMedium.fontSize,
+    color: colors.textSecondary,
   },
   link: {
-    ...typography.bodyMedium,
-    color: colors.portaNavy,
-    fontWeight: '600' as const,
+    fontFamily: typography.labelLarge.fontFamily,
+    fontSize: typography.bodyMedium.fontSize,
+    color: colors.accent,
   },
 });

@@ -1,66 +1,46 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors, spacing, typography, borderRadius, layout } from '../../constants/design';
+import { Ionicons } from '@expo/vector-icons';
+import { AuthHeader } from '../../components/auth/AuthHeader';
+import { colors, spacing, typography, borderRadius, shadows } from '../../constants/design';
 
-const roles = [
-  {
-    id: 'COMPRADOR',
-    label: 'Comprador',
-    description: 'Quero comprar dos vizinhos',
-    icon: '🛒',
-    color: colors.portaNavy,
-  },
-  {
-    id: 'VENDEDOR',
-    label: 'Vendedor',
-    description: 'Quero vender meus produtos',
-    icon: '🏪',
-    color: colors.warmTerracotta,
-  },
+const PERFIS: { id: 'COMPRADOR' | 'VENDEDOR'; titulo: string; texto: string; icone: keyof typeof Ionicons.glyphMap }[] = [
+  { id: 'COMPRADOR', titulo: 'Quero comprar', texto: 'Ver a vitrine e fazer pedidos aos vizinhos.', icone: 'bag-handle-outline' },
+  { id: 'VENDEDOR', titulo: 'Quero vender', texto: 'Anunciar até 15 produtos e receber pedidos.', icone: 'storefront-outline' },
 ];
 
 export default function RoleSelectionScreen() {
   const router = useRouter();
 
-  const handleSelectRole = (roleId: string) => {
-    router.push(`/(auth)/community-selection?role=${roleId}`);
-  };
-
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Como você vai usar o app?</Text>
-          <Text style={styles.subtitle}>Escolha seu perfil para continuar</Text>
-        </View>
+    <ScrollView style={styles.container} contentContainerStyle={styles.conteudo} showsVerticalScrollIndicator={false}>
+      <AuthHeader
+        titulo="Como você vai usar o app?"
+        subtitulo="Escolha o perfil da sua conta neste condomínio."
+        etapa={{ atual: 1, total: 3 }}
+        onVoltar={() => router.back()}
+      />
 
-        <View style={styles.options}>
-          {roles.map((role) => (
-            <TouchableOpacity
-              key={role.id}
-              style={[styles.optionCard, { borderColor: role.color }]}
-              onPress={() => handleSelectRole(role.id)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.optionIcon}>{role.icon}</Text>
-              <View style={styles.optionTextGroup}>
-                <Text style={[styles.optionLabel, { color: role.color }]}>{role.label}</Text>
-                <Text style={styles.optionDescription}>{role.description}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          Ao continuar, você concorda com nossos Termos de Uso e Política de Privacidade
-        </Text>
+      <View style={styles.opcoes}>
+        {PERFIS.map((perfil) => (
+          <TouchableOpacity
+            key={perfil.id}
+            style={styles.opcao}
+            onPress={() => router.push(`/(auth)/community-selection?role=${perfil.id}`)}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+          >
+            <View style={styles.opcaoIcone}>
+              <Ionicons name={perfil.icone} size={26} color={colors.primary} />
+            </View>
+            <View style={styles.opcaoTexto}>
+              <Text style={styles.opcaoTitulo}>{perfil.titulo}</Text>
+              <Text style={styles.opcaoDescricao}>{perfil.texto}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+          </TouchableOpacity>
+        ))}
       </View>
     </ScrollView>
   );
@@ -71,67 +51,47 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollContent: {
+  conteudo: {
     flexGrow: 1,
-    paddingHorizontal: layout.screenPadding,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
-    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
   },
-  content: {
-    flex: 1,
-  },
-  header: {
-    marginBottom: spacing.lg,
-    alignItems: 'center',
-  },
-  title: {
-    ...typography.displaySmall,
-    color: colors.portaNavy,
-    textAlign: 'center',
-    marginBottom: spacing.xs,
-  },
-  subtitle: {
-    ...typography.bodyMedium,
-    color: colors.mutedSlate,
-    textAlign: 'center',
-  },
-  options: {
+  opcoes: {
     gap: spacing.md,
   },
-  optionCard: {
+  opcao: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     padding: spacing.md,
-    backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderStyle: 'solid',
     borderRadius: borderRadius.lg,
-    elevation: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    ...shadows.sm,
   },
-  optionIcon: {
-    fontSize: 36,
+  opcaoIcone: {
+    width: 52,
+    height: 52,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.morningFog,
   },
-  optionTextGroup: {
+  opcaoTexto: {
     flex: 1,
+    gap: 2,
   },
-  optionLabel: {
-    ...typography.bodyLarge,
-    fontWeight: '700' as const,
+  opcaoTitulo: {
+    fontFamily: typography.labelLarge.fontFamily,
+    fontSize: 16,
+    color: colors.textPrimary,
   },
-  optionDescription: {
-    ...typography.bodySmall,
-    color: colors.mutedSlate,
-    marginTop: spacing.xs,
-  },
-  footer: {
-    paddingBottom: spacing.sm,
-  },
-  footerText: {
-    ...typography.bodySmall,
-    color: colors.textMuted,
-    textAlign: 'center',
-    lineHeight: 18,
+  opcaoDescricao: {
+    fontFamily: typography.bodyMedium.fontFamily,
+    fontSize: typography.bodyMedium.fontSize,
+    lineHeight: 20,
+    color: colors.textSecondary,
   },
 });

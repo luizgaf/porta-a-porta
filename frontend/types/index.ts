@@ -36,7 +36,7 @@ export interface Produto {
   status: StatusProduto;
   criadoEm: string;
   atualizadoEm: string;
-  imagem_url?: string;
+  imagemUrl?: string | null;
   media_avaliacoes?: number;
   total_avaliacoes?: number;
   vendedor?: {
@@ -71,7 +71,6 @@ export interface Pedido {
     id: string;
     nome: string;
     unidade: string;
-    email: string;
   };
   avaliacao?: Avaliacao;
 }
@@ -82,12 +81,12 @@ export interface Avaliacao {
   compradorId: string;
   nota: number;
   comentario?: string;
-  removidaPor?: string;
+  removidaPor?: string | null;
   criadoEm: string;
-  comprador?: {
+  // A identidade do avaliador não é exibida a ninguém (RN02); só o nome dos produtos avaliados
+  pedido?: {
     id: string;
-    nome: string;
-    unidade: string;
+    itens: Array<{ produto?: { id: string; nome: string; vendedorId: string } }>;
   };
 }
 
@@ -108,6 +107,25 @@ export interface Denuncia {
     nome: string;
     unidade: string;
   };
+}
+
+// Aviso interno exibido no aplicativo (RNF01)
+export type TipoNotificacao =
+  | 'NOVO_PEDIDO'
+  | 'STATUS_PEDIDO'
+  | 'PEDIDO_CANCELADO'
+  | 'ANUNCIO_QUARENTENA'
+  | 'ANUNCIO_RESTAURADO'
+  | 'DENUNCIA_PARA_ANALISE';
+
+export interface Notificacao {
+  id: string;
+  tipo: TipoNotificacao;
+  mensagem: string;
+  entidadeTipo?: 'PEDIDO' | 'PRODUTO' | null;
+  entidadeId?: string | null;
+  lida: boolean;
+  criadoEm: string;
 }
 
 export interface LogAuditoria {

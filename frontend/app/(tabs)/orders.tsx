@@ -8,6 +8,7 @@ import { Card, Button, Avatar } from '../../components/ui';
 import { STATUS_LABELS, TIPO_ENTREGA_LABELS, ACAO_STATUS_LABELS } from '../../constants';
 import { Pedido, StatusPedido } from '../../types';
 import { formatBRL } from '../../utils/format';
+import { aoChegarPertoDoFim } from '../../utils/rolagem';
 
 const STATUS_COLORS: Record<StatusPedido, string> = {
   PENDENTE: '#FFC107',
@@ -20,7 +21,7 @@ const STATUS_COLORS: Record<StatusPedido, string> = {
 
 export default function OrdersScreen() {
   const router = useRouter();
-  const { usuario, isVendedor, isSindico } = useAuth();
+  const { usuario, isVendedor } = useAuth();
   const { getPedidos, updatePedidoStatus } = useApi();
 
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
@@ -85,7 +86,12 @@ export default function OrdersScreen() {
     </View>
   );
 
-  const renderPedido = ({ item }: { item: Pedido }) => (
+  // A lista junta compras e vendas do usuário (vendedor e síndico também compram)
+  const ehVenda = (pedido: Pedido) => pedido.itens.some(i => i.produto?.vendedorId === usuario?.id);
+
+  const renderPedido = ({ item }: { item: Pedido }) => {
+    const venda = ehVenda(item);
+    return (
     <TouchableOpacity
       style={styles.pedidoCard}
       onPress={() => router.push(`/order/${item.id}`)}
@@ -96,7 +102,16 @@ export default function OrdersScreen() {
           <Text style={styles.pedidoIdLabel}>Pedido</Text>
           <Text style={styles.pedidoIdValue}>#{item.id.slice(0, 8).toUpperCase()}</Text>
         </View>
-        {renderStatusBadge(item.status)}
+        <View style={styles.selos}>
+          {isVendedor && (
+            <View style={[styles.seloTipo, venda ? styles.seloVenda : styles.seloCompra]}>
+              <Text style={[styles.seloTipoTexto, venda ? styles.seloVendaTexto : styles.seloCompraTexto]}>
+                {venda ? 'Venda' : 'Compra'}
+              </Text>
+            </View>
+          )}
+          {renderStatusBadge(item.status)}
+        </View>
       </View>
 
       <View style={styles.pedidoInfo}>
@@ -126,14 +141,7 @@ export default function OrdersScreen() {
           </Text>
         </View>
 
-        {usuario?.tipo === 'COMPRADOR' && item.comprador && (
-          <View style={styles.pedidoRow}>
-            <Ionicons name="person" size={16} color="#6C7A8A" />
-            <Text style={styles.pedidoDetail}>Comprador: {item.comprador.nome}</Text>
-          </View>
-        )}
-
-        {isVendedor && item.comprador && (
+        {venda && item.comprador && (
           <View style={styles.pedidoRow}>
             <Ionicons name="person" size={16} color="#6C7A8A" />
             <Text style={styles.pedidoDetail}>Comprador: {item.comprador.nome}</Text>
@@ -141,7 +149,8 @@ export default function OrdersScreen() {
         )}
       </View>
 
-      {(isVendedor || isSindico) && item.status !== 'ENTREGUE' && item.status !== 'CANCELADO' && (
+      {/* Só quem vende conduz o pedido pela lista; o comprador cancela no detalhe do pedido */}
+      {venda && item.status !== 'ENTREGUE' && item.status !== 'CANCELADO' && (
         <View style={styles.pedidoActions}>
           {getNextStatuses(item.status).map((nextStatus) => (
             <Button
@@ -156,7 +165,8 @@ export default function OrdersScreen() {
         </View>
       )}
     </TouchableOpacity>
-  );
+    );
+  };
 
   const getNextStatuses = (currentStatus: StatusPedido): StatusPedido[] => {
     const transitions: Record<StatusPedido, StatusPedido[]> = {
@@ -200,6 +210,8 @@ export default function OrdersScreen() {
 
   return (
     <ScrollView
+      onScroll={aoChegarPertoDoFim(handleLoadMore)}
+      scrollEventThrottle={200}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#1E3A5F']} />
       }
@@ -229,11 +241,11 @@ export default function OrdersScreen() {
         </View>
       ) : (
         <FlatList
+          // A rolagem é da tela; a lista não rola sozinha (evita listas aninhadas)
+          scrollEnabled={false}
           data={pedidos}
           renderItem={renderPedido}
           keyExtractor={(item) => item.id}
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
           ListFooterComponent={
             pagina < totalPaginas && !loading ? (
               <ActivityIndicator size="small" color="#1E3A5F" style={styles.loadMoreIndicator} />
@@ -298,6 +310,32 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#E8EFF5',
+  },
+  selos: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  seloTipo: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  seloVenda: {
+    backgroundColor: '#FBE7DF',
+  },
+  seloCompra: {
+    backgroundColor: '#E8EBEF',
+  },
+  seloTipoTexto: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  seloVendaTexto: {
+    color: '#C65D3B',
+  },
+  seloCompraTexto: {
+    color: '#1B2A3A',
   },
   pedidoHeader: {
     flexDirection: 'row',

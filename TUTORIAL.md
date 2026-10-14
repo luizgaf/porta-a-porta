@@ -113,9 +113,29 @@ cd frontend
 # Install dependencies
 npm install
 
+# Native/extra packages, in the versions that match the Expo SDK:
+# photo picker, design-system fonts (Fraunces and DM Sans) and react-dom pinned to the React version
+npx expo install expo-image-picker expo-font @expo-google-fonts/fraunces @expo-google-fonts/dm-sans react-dom
+
 # Start Expo dev server
 npm run dev
 ```
+
+### Run on an Android phone over USB (adb)
+
+With the phone connected by USB and USB debugging enabled:
+
+```bash
+# 1. Forward ports 8081 (Expo) and 3000 (API) from the phone to this computer
+./adb/tunnel.sh          # Linux, macOS or Git Bash
+adb\tunnel.cmd           # Windows (cmd or PowerShell)
+
+# 2. Start the backend (port 3000) and then Expo bound to 127.0.0.1
+cd frontend
+npm run start:local
+```
+
+The app on the phone reaches Expo at `127.0.0.1:8081` and the API at `http://127.0.0.1:3000/api` through the tunnel, so it works without Wi-Fi or a LAN IP. Run the tunnel again whenever the phone is reconnected.
 
 ### Configure API URL
 

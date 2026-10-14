@@ -1,18 +1,29 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, ScrollView, ActivityIndicator, Image } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, ScrollView, ActivityIndicator, useWindowDimensions } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
-import { Card, Button, Avatar, CategoryChip, ProductCard } from '../../components/ui';
-import { STATUS_LABELS, CATEGORIAS } from '../../constants';
+import { Button, CategoryChip, ProductTile } from '../../components/ui';
+import { CATEGORIAS } from '../../constants';
 import { Produto } from '../../types';
-import { colors, spacing, typography, shadows, borderRadius, layout } from '../../constants/design';
+import { colors, spacing, typography, borderRadius, layout } from '../../constants/design';
+
+const COLUNAS = 2;
+const ESPACO_ENTRE_CARDS = 12;
+
+const saudacao = () => {
+  const hora = new Date().getHours();
+  if (hora < 12) return 'Bom dia';
+  if (hora < 18) return 'Boa tarde';
+  return 'Boa noite';
+};
 
 function HomeScreen() {
   const router = useRouter();
-  const { usuario, isVendedor, isSindico } = useAuth();
-  const { getProdutos } = useApi();
+  const { usuario, isVendedor } = useAuth();
+  const { getProdutos, getNotificacoes } = useApi();
+  const { width } = useWindowDimensions();
 
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,39 +31,47 @@ function HomeScreen() {
   const [pagina, setPagina] = useState(1);
   const [totalPaginas, setTotalPaginas] = useState(1);
   const [categoriaSelecionada, setCategoriaSelecionada] = useState<string | null>(null);
-  const [busca, setBusca] = useState('');
+  const [avisosNaoLidos, setAvisosNaoLidos] = useState(0);
 
-  const carregarProdutos = useCallback(async (paginaAtual = 1, isRefresh = false) => {
-    if (!isRefresh) setLoading(true);
+  // Largura fixa por card: com número ímpar de produtos, o último não estica para a linha toda
+  const larguraCard = (width - layout.screenPadding * 2 - ESPACO_ENTRE_CARDS * (COLUNAS - 1)) / COLUNAS;
+
+  const atualizarAvisos = useCallback(() => {
+    getNotificacoes({ limite: 1 })
+      .then((resposta) => setAvisosNaoLidos(resposta.naoLidas))
+      .catch(() => undefined);
+  }, [getNotificacoes]);
+
+  // Atualiza a contagem de avisos sempre que a vitrine volta a ficar visível
+  useFocusEffect(atualizarAvisos);
+
+  const carregarProdutos = useCallback(async (paginaAtual = 1) => {
+    if (paginaAtual === 1) setLoading(true);
     try {
-      const params: any = { pagina: paginaAtual, limite: 20 };
+      const params: { pagina: number; limite: number; categoria?: string } = { pagina: paginaAtual, limite: 20 };
       if (categoriaSelecionada) params.categoria = categoriaSelecionada;
-      if (busca) params.busca = busca;
 
       const response = await getProdutos(params);
-      const produtosData = response.produtos || response.data || [];
-      if (paginaAtual === 1) {
-        setProdutos(produtosData);
-      } else {
-        setProdutos(prev => [...prev, ...produtosData]);
-      }
+      const novos = response.produtos || response.data || [];
+      setProdutos((anteriores) => (paginaAtual === 1 ? novos : [...anteriores, ...novos]));
       setPagina(response.paginacao.pagina);
       setTotalPaginas(response.paginacao.totalPaginas);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao carregar produtos:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [getProdutos, categoriaSelecionada, busca]);
+  }, [getProdutos, categoriaSelecionada]);
 
   useEffect(() => {
-    carregarProdutos(1, true);
+    carregarProdutos(1);
   }, [carregarProdutos]);
 
   const handleRefresh = () => {
     setRefreshing(true);
-    carregarProdutos(1, true);
+    carregarProdutos(1);
+    atualizarAvisos();
   };
 
   const handleLoadMore = () => {
@@ -61,234 +80,246 @@ function HomeScreen() {
     }
   };
 
-  const renderCategoria = ({ item }: { item: string }) => (
-    <CategoryChip
-      key={item}
-      label={item.charAt(0).toUpperCase() + item.slice(1)}
-      selected={categoriaSelecionada === item}
-      onPress={() => setCategoriaSelecionada(categoriaSelecionada === item ? null : item)}
-    />
-  );
-
-  if (loading && produtos.length === 0) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Carregando produtos...</Text>
-      </View>
-    );
-  }
-
-  return (
-    <ScrollView
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />
-      }
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-      style={styles.scrollView}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <View style={styles.welcome}>
-            <Text style={[styles.welcomeLabel, { fontFamily: typography.bodySmall.fontFamily, fontSize: typography.bodySmall.fontSize }]}>Bom dia,</Text>
-            <Text style={[styles.welcomeName, { fontFamily: typography.displayMedium.fontFamily, fontWeight: typography.displayMedium.fontWeight, fontSize: typography.displayMedium.fontSize }]}>
-              {usuario?.nome?.split(' ')[0] || 'Vizinho'}
-            </Text>
-          </View>
-          <Avatar name={usuario?.nome || 'U'} size="md" />
+  // Cabeçalho da lista: saudação, avisos, busca e categorias. Fica dentro da própria FlatList,
+  // em vez de a lista ficar dentro de um ScrollView (o que gerava o aviso de VirtualizedLists)
+  const cabecalho = (
+    <View>
+      <View style={styles.topo}>
+        <View style={styles.saudacao}>
+          <Text style={styles.saudacaoTexto}>{saudacao()},</Text>
+          <Text style={styles.nome} numberOfLines={1}>
+            {usuario?.nome?.split(' ')[0] || 'vizinho'}
+          </Text>
         </View>
-
-        {/* Search Bar - navigates to search tab */}
-        <TouchableOpacity style={styles.searchBar} onPress={() => router.push('/(tabs)/search')} activeOpacity={0.8}>
-          <Ionicons name="search" size={20} color={colors.textMuted} />
-          <Text style={[styles.searchPlaceholder, { fontFamily: typography.bodyMedium.fontFamily, fontSize: typography.bodyMedium.fontSize }]}>Buscar produtos, vendedores...</Text>
+        <TouchableOpacity
+          style={styles.sino}
+          onPress={() => router.push('/notifications')}
+          activeOpacity={0.8}
+          accessibilityLabel={avisosNaoLidos > 0 ? `Avisos, ${avisosNaoLidos} não lidos` : 'Avisos'}
+        >
+          <Ionicons name={avisosNaoLidos > 0 ? 'notifications' : 'notifications-outline'} size={22} color={colors.primary} />
+          {avisosNaoLidos > 0 && (
+            <View style={styles.sinoContador}>
+              <Text style={styles.sinoContadorTexto}>{avisosNaoLidos > 9 ? '9+' : avisosNaoLidos}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
-      {/* Categories */}
-      <View style={styles.categoriasContainer}>
-        <Text style={[styles.sectionTitle, { fontFamily: typography.labelLarge.fontFamily, fontWeight: typography.labelLarge.fontWeight, fontSize: typography.labelLarge.fontSize }]}>Categorias</Text>
-        <FlatList
-          data={CATEGORIAS}
-          renderItem={renderCategoria}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoriasList}
-          keyExtractor={(item) => item}
-        />
-      </View>
+      <TouchableOpacity style={styles.busca} onPress={() => router.push('/(tabs)/search')} activeOpacity={0.8}>
+        <Ionicons name="search" size={20} color={colors.textMuted} />
+        <Text style={styles.buscaTexto}>Buscar produtos</Text>
+      </TouchableOpacity>
 
-      {/* Products Header */}
-      <View style={styles.produtosHeader}>
-        <Text style={[styles.sectionTitle, { fontFamily: typography.labelLarge.fontFamily, fontWeight: typography.labelLarge.fontWeight, fontSize: typography.labelLarge.fontSize }]}>Produtos Disponíveis</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.categorias}
+        style={styles.categoriasScroll}
+      >
+        <CategoryChip label="Todos" selected={!categoriaSelecionada} onPress={() => setCategoriaSelecionada(null)} />
+        {CATEGORIAS.map((categoria) => (
+          <CategoryChip
+            key={categoria}
+            label={categoria}
+            selected={categoriaSelecionada === categoria}
+            onPress={() => setCategoriaSelecionada(categoriaSelecionada === categoria ? null : categoria)}
+          />
+        ))}
+      </ScrollView>
+
+      <View style={styles.secaoTitulo}>
+        <Text style={styles.secaoTexto}>{categoriaSelecionada || 'Produtos do condomínio'}</Text>
         {isVendedor && (
-          <TouchableOpacity onPress={() => router.push('/product/new')} style={styles.addButton} activeOpacity={0.8}>
-            <Ionicons name="add" size={22} color={colors.textOnPrimary} />
+          <TouchableOpacity onPress={() => router.push('/product/new')} style={styles.anunciar} activeOpacity={0.8}>
+            <Ionicons name="add" size={18} color={colors.textOnPrimary} />
+            <Text style={styles.anunciarTexto}>Anunciar</Text>
           </TouchableOpacity>
         )}
       </View>
+    </View>
+  );
 
-      {/* Products Horizontal List */}
-      {produtos.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Ionicons name="storefront-outline" size={56} color={colors.border} />
-          <Text style={[styles.emptyText, { fontFamily: typography.bodyLarge.fontFamily, fontSize: typography.bodyLarge.fontSize }]}>
-            {busca || categoriaSelecionada ? 'Nenhum produto encontrado' : 'Nenhum produto disponível'}
-          </Text>
-          <Text style={[styles.emptySubtext, { fontFamily: typography.bodyMedium.fontFamily, fontSize: typography.bodyMedium.fontSize }]}>
-            {busca || categoriaSelecionada ? 'Tente outra busca ou categoria' : 'Seja o primeiro a anunciar!'}
-          </Text>
-          {isVendedor && (
-            <Button
-              title="Criar meu primeiro produto"
-              variant="primary"
-              size="md"
-              onPress={() => router.push('/product/new')}
-              style={{ marginTop: spacing.md, width: 260 }}
-            />
-          )}
-        </View>
-      ) : (
-        <FlatList
-          data={produtos}
-          renderItem={({ item }) => (
-            <ProductCard
-              product={item}
-              onPress={() => router.push(`/product/${item.id}`)}
-              sellerUnit={item.vendedor?.unidade}
-            />
-          )}
-          keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.horizontalList}
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
-          ListFooterComponent={
-            pagina < totalPaginas && !loading ? (
-              <View style={styles.loadMoreContainer}>
-                <ActivityIndicator size="small" color={colors.primary} />
-              </View>
-            ) : null
-          }
-        />
+  const vazio = loading ? (
+    <ActivityIndicator size="large" color={colors.primary} style={styles.carregando} />
+  ) : (
+    <View style={styles.vazio}>
+      <Ionicons name="storefront-outline" size={48} color={colors.borderStrong} />
+      <Text style={styles.vazioTitulo}>
+        {categoriaSelecionada ? 'Nada nesta categoria ainda' : 'Nenhum produto disponível'}
+      </Text>
+      <Text style={styles.vazioTexto}>
+        {categoriaSelecionada ? 'Tente outra categoria.' : 'Quando um vizinho anunciar, o produto aparece aqui.'}
+      </Text>
+      {isVendedor && !categoriaSelecionada && (
+        <Button title="Anunciar um produto" onPress={() => router.push('/product/new')} style={styles.vazioBotao} />
       )}
-    </ScrollView>
+    </View>
+  );
+
+  return (
+    <FlatList
+      style={styles.lista}
+      contentContainerStyle={styles.listaConteudo}
+      data={produtos}
+      keyExtractor={(item) => item.id}
+      numColumns={COLUNAS}
+      columnWrapperStyle={styles.linha}
+      renderItem={({ item }) => (
+        <ProductTile produto={item} onPress={() => router.push(`/product/${item.id}`)} style={{ width: larguraCard }} />
+      )}
+      ListHeaderComponent={cabecalho}
+      ListEmptyComponent={vazio}
+      ListFooterComponent={
+        pagina < totalPaginas ? <ActivityIndicator size="small" color={colors.primary} style={styles.maisItens} /> : null
+      }
+      onEndReached={handleLoadMore}
+      onEndReachedThreshold={0.4}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />}
+      showsVerticalScrollIndicator={false}
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
+  lista: {
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollContent: {
+  listaConteudo: {
     paddingHorizontal: layout.screenPadding,
-    paddingBottom: layout.screenPadding + 20,
     paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
+    flexGrow: 1,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  linha: {
+    gap: ESPACO_ENTRE_CARDS,
+    marginBottom: ESPACO_ENTRE_CARDS,
+  },
+  topo: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.background,
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
   },
-  loadingText: {
-    color: colors.textSecondary,
+  saudacao: {
+    flex: 1,
+  },
+  saudacaoTexto: {
     fontFamily: typography.bodyMedium.fontFamily,
     fontSize: typography.bodyMedium.fontSize,
-  },
-  header: {
-    marginBottom: spacing.xl,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  welcome: {
-    flex: 1,
-  },
-  welcomeLabel: {
     color: colors.textSecondary,
-    marginBottom: 2,
   },
-  welcomeName: {
-    color: colors.textPrimary,
+  nome: {
+    fontFamily: typography.displayMedium.fontFamily,
+    fontSize: typography.displayMedium.fontSize,
+    lineHeight: typography.displayMedium.lineHeight,
+    color: colors.primary,
   },
-  searchBar: {
+  sino: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  sinoContador: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accent,
+  },
+  sinoContadorTexto: {
+    fontFamily: typography.labelSmall.fontFamily,
+    fontSize: 11,
+    color: colors.textOnAccent,
+  },
+  busca: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    height: 48,
+    borderRadius: borderRadius.md,
     backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    width: '100%',
-    ...shadows.sm,
   },
-  searchPlaceholder: {
+  buscaTexto: {
+    fontFamily: typography.bodyMedium.fontFamily,
+    fontSize: typography.bodyMedium.fontSize,
     color: colors.textMuted,
-    flex: 1,
   },
-  categoriasContainer: {
-    marginBottom: spacing.xl,
+  categoriasScroll: {
+    marginTop: spacing.md,
+    marginHorizontal: -layout.screenPadding,
   },
-  sectionTitle: {
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
-  },
-  categoriasList: {
+  categorias: {
     gap: spacing.sm,
-    paddingHorizontal: spacing.xs,
-    paddingBottom: spacing.xs,
+    paddingHorizontal: layout.screenPadding,
   },
-  produtosHeader: {
+  secaoTitulo: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.lg,
     marginBottom: spacing.md,
   },
-  addButton: {
-    width: 40,
-    height: 40,
+  secaoTexto: {
+    fontFamily: typography.displaySmall.fontFamily,
+    fontSize: 20,
+    color: colors.primary,
+  },
+  anunciar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.md,
+    height: 36,
     borderRadius: borderRadius.full,
     backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.sm,
   },
-  horizontalList: {
-    paddingHorizontal: spacing.xs,
-    paddingBottom: spacing.xs,
-    gap: spacing.md,
+  anunciarTexto: {
+    fontFamily: typography.labelMedium.fontFamily,
+    fontSize: 13,
+    color: colors.textOnPrimary,
   },
-  emptyState: {
+  carregando: {
+    marginTop: spacing.xxl,
+  },
+  vazio: {
     alignItems: 'center',
+    gap: spacing.sm,
     paddingVertical: spacing.xxl,
-    gap: spacing.md,
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.lg,
   },
-  emptyText: {
+  vazioTitulo: {
+    fontFamily: typography.labelLarge.fontFamily,
+    fontSize: 16,
     color: colors.textPrimary,
     textAlign: 'center',
-    fontWeight: '500',
   },
-  emptySubtext: {
+  vazioTexto: {
+    fontFamily: typography.bodyMedium.fontFamily,
+    fontSize: typography.bodyMedium.fontSize,
     color: colors.textSecondary,
     textAlign: 'center',
   },
-  loadMoreContainer: {
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
+  vazioBotao: {
+    marginTop: spacing.md,
+  },
+  maisItens: {
+    marginVertical: spacing.md,
   },
 });
 
 export default HomeScreen;
-

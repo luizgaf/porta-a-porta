@@ -1,28 +1,36 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Tunnel backend API (port 3000) to Android device via adb reverse.
-# Usage:
-#   ./adb/tunnel.sh            # setup reverse tunnels
-#   ./adb/tunnel.sh status     # show active tunnels
-#   ./adb/tunnel.sh clear      # remove tunnels
+# Redireciona portas do celular Android (conectado por USB) para este computador via adb reverse.
+# Assim o app no aparelho acessa 127.0.0.1 como se fosse o computador:
+#   8081 -> servidor do Expo (Metro), usado pelo npm run start:local
+#   3000 -> API do back-end
+#
+# Uso:
+#   ./adb/tunnel.sh            # cria os túneis
+#   ./adb/tunnel.sh status     # mostra os túneis ativos
+#   ./adb/tunnel.sh clear      # remove os túneis
+
+PORTAS=(8081 3000)
 
 case "${1:-setup}" in
   setup)
-    echo "Setting up adb reverse tunnel for port 3000..."
-    adb reverse tcp:3000 tcp:3000
-    echo "Done. Device can reach http://localhost:3000"
+    for porta in "${PORTAS[@]}"; do
+      echo "Criando túnel adb reverse para a porta ${porta}..."
+      adb reverse "tcp:${porta}" "tcp:${porta}"
+    done
+    echo "Pronto. O aparelho acessa o Expo em 127.0.0.1:8081 e a API em http://127.0.0.1:3000"
     ;;
   status)
-    echo "Active adb reverse tunnels:"
+    echo "Túneis adb reverse ativos:"
     adb reverse --list
     ;;
   clear)
-    echo "Clearing adb reverse tunnels..."
+    echo "Removendo os túneis adb reverse..."
     adb reverse --remove-all
     ;;
   *)
-    echo "Usage: $0 {setup|status|clear}"
+    echo "Uso: $0 {setup|status|clear}"
     exit 1
     ;;
 esac

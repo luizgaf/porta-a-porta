@@ -199,6 +199,8 @@ export default function ProfileScreen() {
             </Card>
           ) : (
             <FlatList
+              // A rolagem é da tela; a lista não rola sozinha (evita listas aninhadas)
+              scrollEnabled={false}
               data={meusPedidos}
               renderItem={({ item }) => renderPedidoResumido(item, router)}
               keyExtractor={(item) => item.id}
@@ -230,6 +232,8 @@ export default function ProfileScreen() {
             </Card>
           ) : (
             <FlatList
+              // A rolagem é da tela; a lista não rola sozinha (evita listas aninhadas)
+              scrollEnabled={false}
               data={meusProdutos}
               renderItem={({ item }) => renderProdutoResumido(item, router)}
               keyExtractor={(item) => item.id}

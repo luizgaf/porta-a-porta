@@ -8,6 +8,7 @@ import { Card, Button, Avatar, Input } from '../../components/ui';
 import { STATUS_LABELS, CATEGORIAS } from '../../constants';
 import { Produto } from '../../types';
 import { formatBRL } from '../../utils/format';
+import { aoChegarPertoDoFim } from '../../utils/rolagem';
 
 export default function SellerScreen() {
   const router = useRouter();
@@ -213,6 +214,8 @@ export default function SellerScreen() {
 
   return (
     <ScrollView
+      onScroll={aoChegarPertoDoFim(handleLoadMore)}
+      scrollEventThrottle={200}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#1E3A5F']} />
       }
@@ -260,11 +263,11 @@ export default function SellerScreen() {
         </View>
       ) : (
         <FlatList
+          // A rolagem é da tela; a lista não rola sozinha (evita listas aninhadas)
+          scrollEnabled={false}
           data={produtos}
           renderItem={renderProduto}
           keyExtractor={(item) => item.id}
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
           ListFooterComponent={
             pagina < totalPaginas && !loading ? (
               <ActivityIndicator size="small" color="#1E3A5F" style={styles.loadMoreIndicator} />

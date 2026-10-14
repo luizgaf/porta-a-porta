@@ -14,8 +14,9 @@ export const useAuth = () => {
     setLoading,
     updateUsuario,
     hasRole,
-    isVendedor: hasRole('VENDEDOR', 'SINDICO'),
-    isSindico: hasRole('SINDICO'),
+    // Perfis com herança: todo usuário compra; vendedor e síndico também vendem; só o síndico modera
     isComprador: hasRole('COMPRADOR'),
+    isVendedor: hasRole('VENDEDOR'),
+    isSindico: hasRole('SINDICO'),
   };
 };

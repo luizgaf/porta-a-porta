@@ -12,7 +12,7 @@ type TipoUsuario = 'COMPRADOR' | 'VENDEDOR' | 'SINDICO';
 
 // Schemas de validação
 const registerSchema = z.object({
-  condominioId: z.string().uuid('ID do condomínio inválido'),
+  condominioId: z.string().min(1, 'ID do condomínio inválido'),
   nome: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   cpf: z.string().regex(/^\d{11}$/, 'CPF deve ter 11 dígitos'),
   email: z.string().email('E-mail inválido'),

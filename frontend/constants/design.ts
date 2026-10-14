@@ -51,24 +51,26 @@ export const borderRadius = {
   full: 999,
 } as const;
 
+// As famílias abaixo são carregadas em app/_layout.tsx (@expo-google-fonts/fraunces e /dm-sans).
+// No Android, cada peso é uma família própria; por isso o nome inclui o peso.
 export const typography = {
   // Display - Fraunces (characterful, used with restraint)
   displayLarge: {
-    fontFamily: 'Fraunces_72pt-SemiBold',
+    fontFamily: 'Fraunces_600SemiBold',
     fontSize: 34,
     lineHeight: 42,
     letterSpacing: -0.5,
     fontWeight: '600' as const,
   },
   displayMedium: {
-    fontFamily: 'Fraunces_72pt-SemiBold',
+    fontFamily: 'Fraunces_600SemiBold',
     fontSize: 28,
     lineHeight: 36,
     letterSpacing: -0.3,
     fontWeight: '600' as const,
   },
   displaySmall: {
-    fontFamily: 'Fraunces_72pt-Medium',
+    fontFamily: 'Fraunces_500Medium',
     fontSize: 22,
     lineHeight: 30,
     letterSpacing: -0.2,
@@ -77,44 +79,44 @@ export const typography = {
 
   // Body - DM Sans (clean, readable, versatile)
   bodyLarge: {
-    fontFamily: 'DM-Sans',
+    fontFamily: 'DMSans_400Regular',
     fontSize: 16,
     lineHeight: 24,
     letterSpacing: 0,
     fontWeight: '400' as const,
   },
   bodyMedium: {
-    fontFamily: 'DM-Sans',
+    fontFamily: 'DMSans_400Regular',
     fontSize: 14,
     lineHeight: 22,
     letterSpacing: 0,
     fontWeight: '400' as const,
   },
   bodySmall: {
-    fontFamily: 'DM-Sans',
+    fontFamily: 'DMSans_400Regular',
     fontSize: 12,
     lineHeight: 18,
     letterSpacing: 0.2,
     fontWeight: '400' as const,
   },
 
-  // Utility - JetBrains Mono (data, prices, codes)
+  // Utility - DM Sans semibold (dados e preços)
   utilityLarge: {
-    fontFamily: 'JetBrainsMono-Medium',
+    fontFamily: 'DMSans_600SemiBold',
     fontSize: 16,
     lineHeight: 24,
     letterSpacing: 0,
     fontWeight: '500' as const,
   },
   utilityMedium: {
-    fontFamily: 'JetBrainsMono-Medium',
+    fontFamily: 'DMSans_600SemiBold',
     fontSize: 14,
     lineHeight: 22,
     letterSpacing: 0,
     fontWeight: '500' as const,
   },
   utilitySmall: {
-    fontFamily: 'JetBrainsMono-Regular',
+    fontFamily: 'DMSans_500Medium',
     fontSize: 12,
     lineHeight: 18,
     letterSpacing: 0.3,
@@ -123,21 +125,21 @@ export const typography = {
 
   // Label - DM Sans medium/semibold for UI labels
   labelLarge: {
-    fontFamily: 'DM-Sans',
+    fontFamily: 'DMSans_600SemiBold',
     fontSize: 14,
     lineHeight: 20,
     letterSpacing: 0.1,
     fontWeight: '600' as const,
   },
   labelMedium: {
-    fontFamily: 'DM-Sans',
+    fontFamily: 'DMSans_600SemiBold',
     fontSize: 12,
     lineHeight: 18,
     letterSpacing: 0.3,
     fontWeight: '600' as const,
   },
   labelSmall: {
-    fontFamily: 'DM-Sans',
+    fontFamily: 'DMSans_600SemiBold',
     fontSize: 11,
     lineHeight: 16,
     letterSpacing: 0.5,

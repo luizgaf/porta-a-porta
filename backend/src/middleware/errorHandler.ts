@@ -41,6 +41,14 @@ export const errorHandler = (
     });
   }
 
+  // Corpo maior que o limite (ex.: foto acima de 5 MB - RNF05)
+  if ((err as { type?: string }).type === 'entity.too.large') {
+    return res.status(413).json({
+      error: 'Arquivo muito grande. O limite é de 5 MB por foto.',
+      code: 'ARQUIVO_MUITO_GRANDE',
+    });
+  }
+
   // Prisma errors (verifica por duck typing)
   const prismaErr = err as PrismaError;
   if (prismaErr.code === 'P2002') {

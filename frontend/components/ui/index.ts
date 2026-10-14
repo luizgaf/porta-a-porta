@@ -5,3 +5,4 @@ export { Avatar } from './Avatar';
 export { CategoryChip } from './CategoryChip';
 export { DoorTag } from './DoorTag';
 export { ProductCard } from './ProductCard';
+export { ProductImage } from './ProductImage';export { ProductTile } from './ProductTile';

@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, TextInput } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
-import { Card, Avatar } from '../../components/ui';
+import { Card, Avatar, ProductImage } from '../../components/ui';
 import { STATUS_LABELS, CATEGORIAS } from '../../constants';
 import { Produto } from '../../types';
 
@@ -69,11 +69,7 @@ export default function SearchScreen() {
       activeOpacity={0.8}
     >
       <View style={styles.produtoImageContainer}>
-        <Image
-          source={{ uri: 'https://via.placeholder.com/300x200/E6F4FE/1E3A5F?text=Produto' }}
-          style={styles.produtoImage}
-          resizeMode="cover"
-        />
+        <ProductImage url={item.imagemUrl} style={styles.produtoImage} />
         {item.status !== 'ATIVO' && (
           <View style={styles.statusBadge}>
             <Text style={styles.statusBadgeText}>{STATUS_LABELS[item.status]}</Text>
