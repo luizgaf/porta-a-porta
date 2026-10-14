@@ -9,6 +9,7 @@ const criarModelo = () => ({
   create: jest.fn(),
   createMany: jest.fn(),
   update: jest.fn(),
+  updateMany: jest.fn(),
 });
 
 export const prismaMock = {
@@ -20,6 +21,7 @@ export const prismaMock = {
   denuncia: criarModelo(),
   avaliacao: criarModelo(),
   logAuditoria: criarModelo(),
+  notificacao: criarModelo(),
   $transaction: jest.fn(),
   $connect: jest.fn(),
   $disconnect: jest.fn(),
@@ -35,8 +37,10 @@ export const resetPrismaMock = () => {
       Object.values(valor as Modelo).forEach((fn) => fn.mockReset());
     }
   }
-  // Transações executam o callback usando o próprio simulado como cliente
-  prismaMock.$transaction.mockImplementation(async (fn: (tx: typeof prismaMock) => unknown) => fn(prismaMock));
+  // Transações: com callback, executa usando o próprio simulado; com lista, resolve as operações
+  prismaMock.$transaction.mockImplementation(async (arg: unknown) =>
+    typeof arg === 'function' ? (arg as (tx: typeof prismaMock) => unknown)(prismaMock) : Promise.all(arg as unknown[]),
+  );
 };
 
 // Todas as rotas fazem `new PrismaClient()`; aqui todas recebem o mesmo simulado

@@ -8,13 +8,14 @@ datasource db {
 }
 
 model Condominio {
-  id       String    @id @default(uuid())
-  nome     String
-  endereco String
-  criadoEm DateTime  @default(now()) @map("criado_em")
-  pedidos  Pedido[]
-  produtos Produto[]
-  usuarios Usuario[]
+  id           String        @id @default(uuid())
+  nome         String
+  endereco     String
+  criadoEm     DateTime      @default(now()) @map("criado_em")
+  notificacoes Notificacao[]
+  pedidos      Pedido[]
+  produtos     Produto[]
+  usuarios     Usuario[]
 
   @@map("condominios")
 }
@@ -33,6 +34,7 @@ model Usuario {
   avaliacoes    Avaliacao[]
   denuncias     Denuncia[]     @relation("DenuncianteDenuncias")
   logsAuditoria LogAuditoria[]
+  notificacoes  Notificacao[]
   pedidos       Pedido[]       @relation("CompradorPedidos")
   produtos      Produto[]      @relation("VendedorProdutos")
   condominio    Condominio     @relation(fields: [condominioId], references: [id], onDelete: Cascade)
@@ -53,6 +55,7 @@ model Produto {
   preco        Decimal       @db.Decimal(10, 2)
   categoria    String
   status       StatusProduto @default(ATIVO)
+  imagemUrl    String?       @map("imagem_url")
   criadoEm     DateTime      @default(now()) @map("criado_em")
   atualizadoEm DateTime      @updatedAt @map("atualizado_em")
   denuncias    Denuncia[]
@@ -146,6 +149,25 @@ model LogAuditoria {
   @@index([sindicoId])
   @@index([entidadeId])
   @@map("logs_auditoria")
+}
+
+// Avisos internos exibidos no aplicativo (RNF01); não há envio de push
+model Notificacao {
+  id           String     @id @default(uuid())
+  condominioId String     @map("condominio_id")
+  usuarioId    String     @map("usuario_id")
+  tipo         String
+  mensagem     String
+  entidadeTipo String?    @map("entidade_tipo")
+  entidadeId   String?    @map("entidade_id")
+  lida         Boolean    @default(false)
+  criadoEm     DateTime   @default(now()) @map("criado_em")
+  condominio   Condominio @relation(fields: [condominioId], references: [id], onDelete: Cascade)
+  usuario      Usuario    @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId, lida])
+  @@index([condominioId])
+  @@map("notificacoes")
 }
 
 enum TipoUsuario {

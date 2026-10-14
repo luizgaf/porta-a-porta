@@ -1,8 +1,15 @@
-import { Router, Request, Response } from 'express';
+import express, { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { PrismaClient } from '@prisma/client';
 import { asyncHandler, AppError } from '../middleware/errorHandler';
 import { authMiddleware, AuthRequest, requireRole } from '../middleware/auth';
+import {
+  TAMANHO_MAXIMO_IMAGEM,
+  TIPOS_DE_IMAGEM,
+  extensaoPelaAssinatura,
+  salvarImagem,
+  removerImagem,
+} from '../services/imagens';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -21,7 +28,7 @@ const querySchema = z.object({
   limite: z.coerce.number().int().positive().max(50).default(20),
   categoria: z.string().optional(),
   status: z.enum(['ATIVO', 'PAUSADO', 'QUARENTENA', 'EXCLUIDO']).optional(),
-  vendedorId: z.string().uuid().optional(),
+  vendedorId: z.string().min(1).optional(),
   busca: z.string().optional(),
 });
 
@@ -157,7 +164,7 @@ router.get('/:id', authMiddleware, asyncHandler(async (req: AuthRequest, res: Re
     },
     include: {
       vendedor: {
-        select: { id: true, nome: true, unidade: true, email: true },
+        select: { id: true, nome: true, unidade: true },
       },
     },
   });
@@ -252,6 +259,46 @@ router.patch('/:id/status', authMiddleware, asyncHandler(async (req: AuthRequest
 
   res.json({ produto: updated });
 }));
+
+// PUT /api/produtos/:id/imagem - Envia ou troca a foto do produto (dono ou síndico)
+// O corpo da requisição é o próprio arquivo, com Content-Type image/jpeg, image/png ou image/webp (RNF05)
+router.put(
+  '/:id/imagem',
+  authMiddleware,
+  express.raw({ type: () => true, limit: TAMANHO_MAXIMO_IMAGEM }),
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const { id } = req.params;
+
+    const produto = await prisma.produto.findFirst({
+      where: { id, condominioId: req.user!.condominioId },
+    });
+
+    if (!produto) {
+      throw new AppError(404, 'Produto não encontrado', 'PRODUTO_NOT_FOUND');
+    }
+
+    if (produto.vendedorId !== req.user!.id && req.user!.tipo !== 'SINDICO') {
+      throw new AppError(403, 'Não autorizado a alterar este produto', 'FORBIDDEN');
+    }
+
+    const tipo = (req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+    const arquivo = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+    const extensao = extensaoPelaAssinatura(arquivo);
+
+    if (!TIPOS_DE_IMAGEM.includes(tipo) || !extensao) {
+      throw new AppError(415, 'Envie uma imagem JPEG, PNG ou WebP', 'FORMATO_INVALIDO');
+    }
+
+    const imagemUrl = await salvarImagem(arquivo, extensao);
+    const updated = await prisma.produto.update({
+      where: { id },
+      data: { imagemUrl },
+    });
+    await removerImagem(produto.imagemUrl);
+
+    res.json({ produto: updated });
+  }),
+);
 
 // DELETE /api/produtos/:id - Excluir produto (apenas vendedor dono ou síndico)
 router.delete('/:id', authMiddleware, asyncHandler(async (req: AuthRequest, res: Response) => {

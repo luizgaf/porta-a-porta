@@ -245,8 +245,10 @@ async function main() {
   });
 
   for (const produto of produtos) {
+    // O mesmo id no where e no create, para o seed poder ser executado mais de uma vez
+    const id = `seed-prod-${produto.nome.toLowerCase().replace(/\s+/g, '-')}`;
     await prisma.produto.upsert({
-      where: { id: `seed-prod-${produto.nome}` },
+      where: { id },
       update: {
         nome: produto.nome,
         descricao: produto.descricao,
@@ -255,7 +257,7 @@ async function main() {
         status: produto.status,
       },
       create: {
-        id: `seed-prod-${produto.nome.toLowerCase().replace(/\s+/g, '-')}`,
+        id,
         nome: produto.nome,
         descricao: produto.descricao,
         preco: produto.preco,

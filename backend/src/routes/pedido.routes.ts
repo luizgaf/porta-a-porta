@@ -3,13 +3,19 @@ import { z } from 'zod';
 import { PrismaClient } from '@prisma/client';
 import { asyncHandler, AppError } from '../middleware/errorHandler';
 import { authMiddleware, AuthRequest, requireRole } from '../middleware/auth';
+import { notificar, formatarValor, STATUS_PEDIDO_TEXTO, NovaNotificacao } from '../services/notificacoes';
 
 const router = Router();
 const prisma = new PrismaClient();
 
+// RN02: a avaliação só aparece para quem a escreveu; o vendedor vê o pedido sem ela,
+// para não ligar a nota ao comprador
+const ocultarAvaliacaoDeTerceiros = <T extends { compradorId: string; avaliacao?: unknown }>(pedido: T, usuarioId: string) =>
+  pedido.compradorId === usuarioId ? pedido : { ...pedido, avaliacao: null };
+
 const createPedidoSchema = z.object({
   itens: z.array(z.object({
-    produtoId: z.string().uuid(),
+    produtoId: z.string().min(1),
     quantidade: z.number().int().positive(),
   })).min(1, 'Pelo menos um item é obrigatório'),
   unidadeEntrega: z.string().min(1, 'Unidade de entrega é obrigatória'),
@@ -82,6 +88,22 @@ router.post('/', authMiddleware, requireRole('COMPRADOR', 'SINDICO'), asyncHandl
     return novoPedido;
   });
 
+  // Aviso interno para cada vendedor com item no pedido (HU04)
+  const vendedores = [...new Set(produtos.map((p: { vendedorId?: string }) => p.vendedorId).filter(Boolean))] as string[];
+  await notificar(prisma, vendedores.map((vendedorId) => {
+    const itensDoVendedor = data.itens.filter((item) =>
+      produtos.some((p: { id: string; vendedorId?: string }) => p.id === item.produtoId && p.vendedorId === vendedorId));
+    const quantidade = itensDoVendedor.reduce((soma, item) => soma + item.quantidade, 0);
+    return {
+      condominioId: req.user!.condominioId,
+      usuarioId: vendedorId,
+      tipo: 'NOVO_PEDIDO' as const,
+      mensagem: `Novo pedido para entrega em ${data.unidadeEntrega}: ${quantidade} ${quantidade === 1 ? 'item' : 'itens'}, janela ${data.janelaHorario}. Total do pedido: ${formatarValor(valorTotal)}.`,
+      entidadeTipo: 'PEDIDO' as const,
+      entidadeId: pedido.id,
+    };
+  }));
+
   const pedidoCompleto = await prisma.pedido.findUnique({
     where: { id: pedido.id },
     include: {
@@ -93,7 +115,7 @@ router.post('/', authMiddleware, requireRole('COMPRADOR', 'SINDICO'), asyncHandl
         },
       },
       comprador: {
-        select: { id: true, nome: true, unidade: true, email: true },
+        select: { id: true, nome: true, unidade: true },
       },
     },
   });
@@ -149,7 +171,7 @@ router.get('/', authMiddleware, asyncHandler(async (req: AuthRequest, res: Respo
   ]);
 
   res.json({
-    pedidos,
+    pedidos: pedidos.map((p: { compradorId: string; avaliacao?: unknown }) => ocultarAvaliacaoDeTerceiros(p, req.user!.id)),
     paginacao: {
       pagina,
       limite,
@@ -183,7 +205,7 @@ router.get('/:id', authMiddleware, asyncHandler(async (req: AuthRequest, res: Re
         },
       },
       comprador: {
-        select: { id: true, nome: true, unidade: true, email: true },
+        select: { id: true, nome: true, unidade: true },
       },
       avaliacao: true,
     },
@@ -193,7 +215,7 @@ router.get('/:id', authMiddleware, asyncHandler(async (req: AuthRequest, res: Re
     throw new AppError(404, 'Pedido não encontrado', 'PEDIDO_NOT_FOUND');
   }
 
-  res.json({ pedido });
+  res.json({ pedido: ocultarAvaliacaoDeTerceiros(pedido, req.user!.id) });
 }));
 
 // PATCH /api/pedidos/:id/status - Atualizar status do pedido
@@ -248,6 +270,32 @@ router.patch('/:id/status', authMiddleware, asyncHandler(async (req: AuthRequest
       comprador: { select: { id: true, nome: true, unidade: true } },
     },
   });
+
+  // Aviso interno para a outra parte do pedido (HU04)
+  const avisos: NovaNotificacao[] = [];
+  if (req.user!.id !== pedido.compradorId) {
+    avisos.push({
+      condominioId: pedido.condominioId,
+      usuarioId: pedido.compradorId,
+      tipo: 'STATUS_PEDIDO',
+      mensagem: `Seu pedido agora está ${STATUS_PEDIDO_TEXTO[status]}.`,
+      entidadeTipo: 'PEDIDO',
+      entidadeId: pedido.id,
+    });
+  } else if (status === 'CANCELADO') {
+    const vendedores = [...new Set(pedido.itens.map((i: { produto: { vendedorId: string } }) => i.produto.vendedorId))];
+    for (const vendedorId of vendedores) {
+      avisos.push({
+        condominioId: pedido.condominioId,
+        usuarioId: vendedorId,
+        tipo: 'PEDIDO_CANCELADO',
+        mensagem: `O pedido para entrega em ${pedido.unidadeEntrega} foi cancelado pelo comprador.`,
+        entidadeTipo: 'PEDIDO',
+        entidadeId: pedido.id,
+      });
+    }
+  }
+  await notificar(prisma, avisos);
 
   res.json({ pedido: updated });
 }));

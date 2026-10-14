@@ -53,3 +53,13 @@ export const chamar = async (metodo: Metodo, caminho: string, token?: string, co
   });
   return { status: resposta.status, corpo: (await resposta.json()) as any };
 };
+
+// Envia um arquivo como corpo da requisição (usado no envio da foto do produto)
+export const enviarArquivo = async (caminho: string, token: string, conteudo: Buffer, tipo: string) => {
+  const resposta = await fetch(`${urlBase}${caminho}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': tipo, Connection: 'close', Authorization: `Bearer ${token}` },
+    body: conteudo,
+  });
+  return { status: resposta.status, corpo: (await resposta.json()) as any };
+};
