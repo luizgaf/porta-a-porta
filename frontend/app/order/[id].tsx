@@ -94,9 +94,9 @@ export default function OrderDetailScreen() {
       CANCELADO: [],
     };
     const proximos = transitions[currentStatus] || [];
-    // Comprador (que não é vendedor do pedido nem síndico) só pode cancelar; a API recusa as demais transições
-    const ehVendedorDoPedido = isVendedor && pedido?.itens.some(i => i.produto?.vendedorId === usuario?.id);
-    if (!isSindico && !ehVendedorDoPedido) {
+    // Quem vende algum item conduz o pedido; quem comprou só pode cancelar (a API aplica a mesma regra)
+    const ehVendedorDoPedido = pedido?.itens.some(i => i.produto?.vendedorId === usuario?.id);
+    if (!ehVendedorDoPedido) {
       return proximos.filter(s => s === 'CANCELADO');
     }
     return proximos;
@@ -104,10 +104,8 @@ export default function OrderDetailScreen() {
 
   const canUpdateStatus = () => {
     if (!pedido) return false;
-    if (isSindico) return true;
-    if (isVendedor && pedido.itens.some(i => i.produto?.vendedorId === usuario?.id)) return true;
-    if (usuario?.tipo === 'COMPRADOR' && pedido.compradorId === usuario?.id) return true;
-    return false;
+    if (pedido.itens.some(i => i.produto?.vendedorId === usuario?.id)) return true;
+    return pedido.compradorId === usuario?.id;
   };
 
   const canAvaliar = () => {

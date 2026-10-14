@@ -18,15 +18,6 @@ const features: Feature[] = [
   { icon: 'person-outline', title: 'Perfil por Unidade', desc: 'Identificação vinculada ao apartamento/bloco' },
 ];
 
-const techStack = [
-  'React Native + Expo',
-  'TypeScript',
-  'Node.js + Express',
-  'PostgreSQL + Prisma ORM',
-  'JWT Authentication',
-  'Zustand (State Management)',
-  'Expo Router (Navigation)',
-];
 
 export default function AboutScreen() {
   const router = useRouter();
@@ -78,16 +69,6 @@ export default function AboutScreen() {
           </View>
         </Card>
 
-        <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>Tecnologia</Text>
-          <View style={styles.techStack}>
-            {techStack.map((tech, index) => (
-              <Text key={index} style={styles.techItem}>
-                • {tech}
-              </Text>
-            ))}
-          </View>
-        </Card>
 
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>Links Úteis</Text>
@@ -215,16 +196,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6C7A8A',
     marginTop: 2,
-  },
-  techStack: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    gap: 6,
-  },
-  techItem: {
-    fontSize: 13,
-    color: '#3D4A5A',
-    paddingHorizontal: 16,
   },
   links: {
     paddingHorizontal: 16,

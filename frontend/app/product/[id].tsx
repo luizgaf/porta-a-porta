@@ -153,8 +153,10 @@ export default function ProductDetailScreen() {
     );
   }
 
+  // Quem anunciou gerencia o produto; todos os outros (inclusive vendedor e síndico) podem comprar.
+  // A moderação do síndico sobre anúncios de terceiros é feita no painel de moderação.
   const isOwner = produto.vendedorId === usuario?.id;
-  const canManage = isOwner || isSindico;
+  const canManage = isOwner;
 
   return (
     <ScrollView
