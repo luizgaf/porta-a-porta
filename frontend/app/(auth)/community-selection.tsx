@@ -1,211 +1,249 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, TouchableOpacity, Alert, ActivityIndicator, ScrollView, Modal, FlatList } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
-import { Input, Button, Card } from '../../components/ui';
+import { Input, Button } from '../../components/ui';
+import { AuthHeader } from '../../components/auth/AuthHeader';
+import { MensagemErro } from '../../components/auth/MensagemErro';
 import { TipoUsuario, Condominio } from '../../types';
-import { colors, spacing, typography, borderRadius, layout } from '../../constants/design';
+import { colors, spacing, typography, borderRadius } from '../../constants/design';
+
+// Cadastro em duas etapas (2 e 3 do fluxo; a 1 é a escolha do perfil):
+// escolher o condomínio e depois preencher os dados do morador.
+
+const apenasDigitos = (valor: string) => valor.replace(/\D/g, '').slice(0, 11);
+
+// 12345678901 -> 123.456.789-01 (só para exibição; a API recebe os 11 dígitos)
+const mascararCPF = (digitos: string) =>
+  digitos
+    .replace(/^(\d{3})(\d)/, '$1.$2')
+    .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d{1,2})$/, '.$1-$2');
+
+const icone = (nome: keyof typeof Ionicons.glyphMap) => <Ionicons name={nome} size={20} color={colors.mutedSlate} />;
 
 export default function CommunitySelectionScreen() {
   const router = useRouter();
   const { isLoading } = useAuth();
   const { register, getCondominios } = useApi();
   const { role } = useLocalSearchParams<{ role?: string }>();
+  const perfil: TipoUsuario = role === 'VENDEDOR' ? 'VENDEDOR' : 'COMPRADOR';
+
   const [condominios, setCondominios] = useState<Condominio[]>([]);
-  const [selectedCondominio, setSelectedCondominio] = useState<string>('');
+  const [carregandoCondominios, setCarregandoCondominios] = useState(true);
+  const [busca, setBusca] = useState('');
+  const [condominioId, setCondominioId] = useState('');
+  const [codigoManual, setCodigoManual] = useState('');
+  const [mostrarCodigo, setMostrarCodigo] = useState(false);
+  const [etapa, setEtapa] = useState<'CONDOMINIO' | 'DADOS'>('CONDOMINIO');
+
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
   const [email, setEmail] = useState('');
+  const [unidade, setUnidade] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
-  const [unidade, setUnidade] = useState('');
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
-  const [loadingCondominios, setLoadingCondominios] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [dropdownVisible, setDropdownVisible] = useState(false);
-
-  const roleId = (role as TipoUsuario) || 'COMPRADOR';
 
   useEffect(() => {
-    fetchCondominios();
-  }, []);
+    getCondominios()
+      .then((resposta) => setCondominios(resposta.condominios || []))
+      .catch(() => setMostrarCodigo(true))
+      .finally(() => setCarregandoCondominios(false));
+  }, [getCondominios]);
 
-  const fetchCondominios = async () => {
-    try {
-      const response = await getCondominios();
-      setCondominios(response.condominios || []);
-    } catch {
-      // Se falhar, permite entrada manual
-    } finally {
-      setLoadingCondominios(false);
-    }
-  };
+  const filtrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    if (!termo) return condominios;
+    return condominios.filter((c) => `${c.nome} ${c.endereco}`.toLowerCase().includes(termo));
+  }, [busca, condominios]);
 
-  const formatCPF = (value: string) => {
-    return value.replace(/\D/g, '').slice(0, 11);
-  };
+  const condominioEscolhido = condominios.find((c) => c.id === condominioId);
+  const idFinal = mostrarCodigo && codigoManual.trim() ? codigoManual.trim() : condominioId;
 
-  const handleSelectCondominio = (condominioId: string) => {
-    setSelectedCondominio(condominioId);
-    setDropdownVisible(false);
-    setShowForm(true);
-  };
-
-  const handleRegister = async () => {
-    if (!selectedCondominio || !nome || !email || !senha || !unidade) {
-      setError('Preencha todos os campos');
-      return;
-    }
-    if (senha !== confirmarSenha) {
-      setError('Senhas não conferem');
-      return;
-    }
-    if (formatCPF(cpf).length !== 11) {
-      setError('CPF inválido');
+  const avancar = () => {
+    if (!idFinal) {
+      setError('Escolha o seu condomínio para continuar.');
       return;
     }
     setError('');
+    setEtapa('DADOS');
+  };
+
+  const handleRegister = async () => {
+    const emailLimpo = email.trim().toLowerCase();
+    if (!nome.trim() || !emailLimpo || !unidade.trim() || !senha) {
+      setError('Preencha todos os campos.');
+      return;
+    }
+    if (apenasDigitos(cpf).length !== 11) {
+      setError('O CPF precisa ter 11 dígitos.');
+      return;
+    }
+    if (senha.length < 6) {
+      setError('A senha precisa ter pelo menos 6 caracteres.');
+      return;
+    }
+    if (senha !== confirmarSenha) {
+      setError('As senhas não conferem.');
+      return;
+    }
+    setError('');
+    setEnviando(true);
     try {
       await register({
-        condominioId: selectedCondominio,
-        nome,
-        cpf: formatCPF(cpf),
-        email,
+        condominioId: idFinal,
+        nome: nome.trim(),
+        cpf: apenasDigitos(cpf),
+        email: emailLimpo,
         senha,
-        unidade,
-        tipo: roleId,
+        unidade: unidade.trim(),
+        tipo: perfil,
       });
       router.replace('/(tabs)/home');
     } catch (err: any) {
-      setError(err.message || 'Erro ao cadastrar');
+      setError(err.message || 'Não foi possível criar a conta.');
+    } finally {
+      setEnviando(false);
     }
   };
 
-  if (loadingCondominios) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.portaNavy} />
-        <Text style={styles.loadingText}>Carregando condomínios...</Text>
-      </View>
-    );
-  }
+  const voltar = () => {
+    setError('');
+    if (etapa === 'DADOS') setEtapa('CONDOMINIO');
+    else router.back();
+  };
+
+  const olhoSenha = (
+    <TouchableOpacity onPress={() => setMostrarSenha((v) => !v)} accessibilityLabel={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'} hitSlop={8}>
+      <Ionicons name={mostrarSenha ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.mutedSlate} />
+    </TouchableOpacity>
+  );
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.content}>
-          <View style={styles.header}>
-            <Text style={styles.title}>
-              {showForm ? 'Criar Conta' : 'Selecione seu Condomínio'}
-            </Text>
-            <Text style={styles.subtitle}>
-              {showForm
-                ? 'Preencha seus dados para continuar'
-                : 'Encontre seu condomínio na lista ou digite o ID'}
-            </Text>
-          </View>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
+      <ScrollView contentContainerStyle={styles.conteudo} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {etapa === 'CONDOMINIO' ? (
+          <>
+            <AuthHeader
+              titulo="Qual é o seu condomínio?"
+              subtitulo="Você só verá produtos e pedidos dos moradores dele."
+              etapa={{ atual: 2, total: 3 }}
+              onVoltar={voltar}
+            />
 
-          {!showForm && (
-            <View>
-              <Card style={styles.formCard}>
-                <Text style={styles.sectionLabel}>Condomínio</Text>
-                <TouchableOpacity
-                  style={[styles.dropdown, selectedCondominio ? styles.dropdownSelected : null]}
-                  onPress={() => setDropdownVisible(true)}
-                  disabled={loadingCondominios}
-                >
-                  <Text style={[styles.dropdownText, selectedCondominio ? null : styles.dropdownPlaceholder]}>
-                    {loadingCondominios
-                      ? 'Carregando...'
-                      : selectedCondominio
-                        ? condominios.find(c => c.id === selectedCondominio)?.nome || 'Selecione'
-                        : 'Selecione um condomínio'}
+            {carregandoCondominios ? (
+              <ActivityIndicator size="large" color={colors.primary} style={styles.carregando} />
+            ) : (
+              <View style={styles.secao}>
+                {condominios.length > 5 && (
+                  <Input
+                    placeholder="Buscar pelo nome ou endereço"
+                    value={busca}
+                    onChangeText={setBusca}
+                    leftIcon={icone('search-outline')}
+                    autoCorrect={false}
+                  />
+                )}
+
+                {filtrados.map((c) => {
+                  const selecionado = condominioId === c.id && !mostrarCodigo;
+                  return (
+                    <TouchableOpacity
+                      key={c.id}
+                      style={[styles.condominio, selecionado && styles.condominioSelecionado]}
+                      onPress={() => {
+                        setCondominioId(c.id);
+                        setMostrarCodigo(false);
+                        setError('');
+                      }}
+                      activeOpacity={0.85}
+                      accessibilityState={{ selected: selecionado }}
+                    >
+                      <View style={[styles.condominioIcone, selecionado && styles.condominioIconeSelecionado]}>
+                        <Ionicons name="business-outline" size={20} color={selecionado ? colors.textOnPrimary : colors.primary} />
+                      </View>
+                      <View style={styles.condominioTexto}>
+                        <Text style={styles.condominioNome}>{c.nome}</Text>
+                        <Text style={styles.condominioEndereco} numberOfLines={2}>{c.endereco}</Text>
+                      </View>
+                      <Ionicons
+                        name={selecionado ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={22}
+                        color={selecionado ? colors.accent : colors.borderStrong}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+
+                {condominios.length > 0 && filtrados.length === 0 && (
+                  <Text style={styles.vazio}>Nenhum condomínio encontrado para "{busca}".</Text>
+                )}
+
+                <TouchableOpacity onPress={() => setMostrarCodigo((v) => !v)} style={styles.linkCodigo} hitSlop={8}>
+                  <Text style={styles.link}>
+                    {mostrarCodigo ? 'Escolher da lista' : 'Meu condomínio não aparece'}
                   </Text>
                 </TouchableOpacity>
 
-                <View style={styles.manualEntry}>
-                  <Text style={styles.manualText}>Condomínio não encontrado?</Text>
+                {mostrarCodigo && (
                   <Input
-                    label="ID do Condomínio"
-                    placeholder="Fornecido pelo síndico"
-                    value={selectedCondominio}
-                    onChangeText={setSelectedCondominio}
+                    label="Código do condomínio"
+                    placeholder="Informado pelo síndico"
+                    value={codigoManual}
+                    onChangeText={setCodigoManual}
                     autoCapitalize="none"
+                    autoCorrect={false}
+                    leftIcon={icone('key-outline')}
                   />
-                  <Button
-                    title="Continuar com ID Manual"
-                    onPress={() => selectedCondominio && setShowForm(true)}
-                    disabled={!selectedCondominio}
-                    fullWidth
-                    variant="outline"
-                  />
-                </View>
-              </Card>
+                )}
+              </View>
+            )}
 
-              <Modal
-              transparent
-              visible={dropdownVisible}
-              animationType="fade"
-              onRequestClose={() => setDropdownVisible(false)}
-            >
-              <TouchableOpacity
-                style={styles.modalOverlay}
-                activeOpacity={1}
-                onPress={() => setDropdownVisible(false)}
-              >
-                <View style={styles.modalContent}>
-                  <Text style={styles.modalTitle}>Selecione um Condomínio</Text>
-                  <FlatList
-                    data={condominios}
-                    keyExtractor={(item) => item.id}
-                    showsVerticalScrollIndicator={false}
-                    renderItem={({ item }) => (
-                      <TouchableOpacity
-                        style={styles.modalItem}
-                        onPress={() => handleSelectCondominio(item.id)}
-                      >
-                        <Text style={styles.modalItemText}>{item.nome}</Text>
-                        <Text style={styles.modalItemSubtext}>{item.endereco}</Text>
-                      </TouchableOpacity>
-                    )}
-                  />
-                </View>
-              </TouchableOpacity>
-            </Modal>
+            <View style={styles.rodape}>
+              <MensagemErro texto={error} />
+              <Button title="Continuar" onPress={avancar} fullWidth size="lg" disabled={carregandoCondominios} />
             </View>
-          )}
+          </>
+        ) : (
+          <>
+            <AuthHeader
+              titulo="Seus dados"
+              subtitulo={condominioEscolhido ? `Cadastro no ${condominioEscolhido.nome}.` : 'Cadastro com o código informado.'}
+              etapa={{ atual: 3, total: 3 }}
+              onVoltar={voltar}
+            />
 
-          {showForm && (
-            <Card style={styles.formCard}>
-              <Text style={styles.selectedCondominio}>
-                Condomínio: {condominios.find((c) => c.id === selectedCondominio)?.nome || 'ID Manual'}
-              </Text>
+            <View style={styles.perfil}>
+              <Ionicons name={perfil === 'VENDEDOR' ? 'storefront-outline' : 'bag-handle-outline'} size={16} color={colors.primary} />
+              <Text style={styles.perfilTexto}>{perfil === 'VENDEDOR' ? 'Conta de vendedor' : 'Conta de comprador'}</Text>
+            </View>
 
+            <View style={styles.secao}>
+              <Input label="Nome completo" placeholder="Como os vizinhos vão te ver" value={nome} onChangeText={setNome} autoCapitalize="words" leftIcon={icone('person-outline')} />
               <Input
-                label="Nome Completo"
-                placeholder="João da Silva"
-                value={nome}
-                onChangeText={setNome}
+                label="Unidade"
+                placeholder="Ex.: Bloco A, Apto 101"
+                value={unidade}
+                onChangeText={setUnidade}
                 autoCapitalize="words"
+                leftIcon={icone('home-outline')}
+                helperText="Usada para entregas. Só aparece para quem negocia com você."
               />
-
               <Input
                 label="CPF"
                 placeholder="000.000.000-00"
-                value={cpf}
-                onChangeText={(v) => setCpf(formatCPF(v))}
+                value={mascararCPF(apenasDigitos(cpf))}
+                onChangeText={(v) => setCpf(apenasDigitos(v))}
                 keyboardType="number-pad"
                 maxLength={14}
+                leftIcon={icone('card-outline')}
+                helperText="Não é exibido a outros moradores."
               />
-
               <Input
                 label="E-mail"
                 placeholder="seu@email.com"
@@ -213,56 +251,37 @@ export default function CommunitySelectionScreen() {
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false}
                 autoComplete="email"
+                leftIcon={icone('mail-outline')}
               />
-
-              <Input
-                label="Unidade/Bloco"
-                placeholder="Ex: Bloco A, Ap 101"
-                value={unidade}
-                onChangeText={setUnidade}
-                autoCapitalize="words"
-              />
-
               <Input
                 label="Senha"
-                placeholder="••••••••"
+                placeholder="Mínimo de 6 caracteres"
                 value={senha}
                 onChangeText={setSenha}
-                secureTextEntry
+                secureTextEntry={!mostrarSenha}
                 autoComplete="new-password"
+                leftIcon={icone('lock-closed-outline')}
+                rightIcon={olhoSenha}
               />
-
               <Input
-                label="Confirmar Senha"
-                placeholder="••••••••"
+                label="Confirmar senha"
+                placeholder="Repita a senha"
                 value={confirmarSenha}
                 onChangeText={setConfirmarSenha}
-                secureTextEntry
+                secureTextEntry={!mostrarSenha}
                 autoComplete="new-password"
+                leftIcon={icone('lock-closed-outline')}
               />
+            </View>
 
-              {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-              <View style={styles.buttonGroup}>
-                <Button
-                  title="Voltar"
-                  onPress={() => setShowForm(false)}
-                  variant="outline"
-                  fullWidth
-                  size="lg"
-                />
-                <Button
-                  title="Criar Conta"
-                  onPress={handleRegister}
-                  loading={isLoading}
-                  fullWidth
-                  size="lg"
-                />
-              </View>
-            </Card>
-          )}
-        </View>
+            <View style={styles.rodape}>
+              <MensagemErro texto={error} />
+              <Button title="Criar conta" onPress={handleRegister} loading={enviando || isLoading} fullWidth size="lg" />
+            </View>
+          </>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -273,160 +292,92 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  conteudo: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
+  },
+  carregando: {
+    marginTop: spacing.xl,
+  },
+  secao: {
     gap: spacing.md,
   },
-  loadingText: {
-    ...typography.bodyMedium,
-    color: colors.mutedSlate,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: layout.screenPadding,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
-    justifyContent: 'space-between',
-  },
-  content: {
-    width: '100%',
-  },
-  header: {
-    marginBottom: spacing.lg,
+  condominio: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  title: {
-    ...typography.displaySmall,
-    color: colors.portaNavy,
-    textAlign: 'center',
-    marginBottom: spacing.xs,
+  condominioSelecionado: {
+    borderColor: colors.accent,
+    borderWidth: 2,
+    backgroundColor: '#FFF9F6',
   },
-  subtitle: {
-    ...typography.bodyMedium,
-    color: colors.mutedSlate,
-    textAlign: 'center',
+  condominioIcone: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.morningFog,
   },
-  formCard: {
-    marginBottom: spacing.lg,
+  condominioIconeSelecionado: {
+    backgroundColor: colors.primary,
   },
-  sectionLabel: {
-    ...typography.bodySmall,
-    fontWeight: '600' as const,
+  condominioTexto: {
+    flex: 1,
+    gap: 2,
+  },
+  condominioNome: {
+    fontFamily: typography.labelLarge.fontFamily,
+    fontSize: 15,
     color: colors.textPrimary,
-    marginBottom: spacing.xs,
   },
-  manualEntry: {
-    marginTop: spacing.md,
-    gap: spacing.sm,
-  },
-  manualText: {
-    ...typography.bodyMedium,
+  condominioEndereco: {
+    fontFamily: typography.bodySmall.fontFamily,
+    fontSize: 13,
+    lineHeight: 18,
     color: colors.textSecondary,
   },
-  dropdown: {
-    marginBottom: spacing.md,
+  vazio: {
+    textAlign: 'center',
+    fontFamily: typography.bodyMedium.fontFamily,
+    fontSize: typography.bodyMedium.fontSize,
+    color: colors.textSecondary,
+  },
+  linkCodigo: {
+    alignSelf: 'center',
+    paddingVertical: spacing.xs,
+  },
+  link: {
+    fontFamily: typography.labelLarge.fontFamily,
+    fontSize: typography.bodyMedium.fontSize,
+    color: colors.accent,
+  },
+  perfil: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
     paddingHorizontal: spacing.md,
-    paddingVertical: 14,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.morningFog,
+    marginBottom: spacing.lg,
   },
-  dropdownSelected: {
-    borderColor: colors.portaNavy,
-  },
-  dropdownText: {
-    fontSize: 16,
-    color: colors.portaNavy,
-  },
-  dropdownPlaceholder: {
-    color: colors.mutedSlate,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
-  modalContent: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    maxHeight: '60%',
-    width: '100%',
-    padding: spacing.md,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.portaNavy,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  modalItem: {
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
-  modalItemText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.portaNavy,
-  },
-  modalItemSubtext: {
+  perfilTexto: {
+    fontFamily: typography.labelMedium.fontFamily,
     fontSize: 13,
-    color: colors.mutedSlate,
-    marginTop: 2,
+    color: colors.primary,
   },
-  condominioItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.xs,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  condominioInfo: {
-    flex: 1,
-  },
-  condominioName: {
-    ...typography.bodyMedium,
-    fontWeight: '600' as const,
-    color: colors.textPrimary,
-  },
-  condominioAddress: {
-    ...typography.bodySmall,
-    color: colors.mutedSlate,
-    marginTop: spacing.xs,
-  },
-  chevron: {
-    fontSize: 20,
-    color: colors.textMuted,
-  },
-  selectedCondominio: {
-    ...typography.bodyMedium,
-    color: colors.textPrimary,
-    fontWeight: '500' as const,
-    marginBottom: spacing.md,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  errorText: {
-    ...typography.bodySmall,
-    color: colors.error,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
-  buttonGroup: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
+  rodape: {
+    marginTop: spacing.xl,
+    gap: spacing.md,
   },
 });

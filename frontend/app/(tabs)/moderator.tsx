@@ -667,7 +667,7 @@ const styles = StyleSheet.create({
   },
   modalDenunciaItem: {
     paddingVertical: 12,
-    backgroundColor: '#F5F8FA',
+    backgroundColor: '#FDFBF7',
     borderRadius: 10,
     paddingHorizontal: 12,
   },

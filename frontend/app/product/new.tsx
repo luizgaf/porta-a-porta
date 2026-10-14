@@ -201,7 +201,7 @@ export default function NewProductScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F8FA',
+    backgroundColor: '#FDFBF7',
   },
   unauthorizedContainer: {
     flex: 1,
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: '#D0D8DE',
-    backgroundColor: '#F5F8FA',
+    backgroundColor: '#FDFBF7',
     marginBottom: 8,
   },
   fotoPreview: {

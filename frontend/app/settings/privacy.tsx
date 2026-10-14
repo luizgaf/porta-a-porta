@@ -118,7 +118,7 @@ export default function PrivacySettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F8FA',
+    backgroundColor: '#FDFBF7',
   },
   header: {
     flexDirection: 'row',

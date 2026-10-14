@@ -109,7 +109,7 @@ export default function AboutScreen() {
 
         <View style={styles.credits}>
           <Text style={styles.creditsText}>
-            Feito com ❤️ para comunidades residenciais
+            Feito para comunidades residenciais
             {'\n'}© 2024 Porta a Porta. Todos os direitos reservados.
           </Text>
         </View>
@@ -121,7 +121,7 @@ export default function AboutScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F8FA',
+    backgroundColor: '#FDFBF7',
   },
   header: {
     flexDirection: 'row',

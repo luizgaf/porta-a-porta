@@ -113,8 +113,9 @@ cd frontend
 # Install dependencies
 npm install
 
-# Photo picker used to add product photos (installs the version that matches the Expo SDK)
-npx expo install expo-image-picker
+# Native/extra packages, in the versions that match the Expo SDK:
+# photo picker, design-system fonts (Fraunces and DM Sans) and react-dom pinned to the React version
+npx expo install expo-image-picker expo-font @expo-google-fonts/fraunces @expo-google-fonts/dm-sans react-dom
 
 # Start Expo dev server
 npm run dev

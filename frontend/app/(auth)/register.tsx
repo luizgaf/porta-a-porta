@@ -165,7 +165,7 @@ export default function RegisterScreen() {
                     styles.roleOptionText,
                     formData.tipo === tipo && styles.roleOptionTextSelected,
                   ]}>
-                    {tipo === 'COMPRADOR' ? '🛒 Comprador' : '🏪 Vendedor'}
+                    {tipo === 'COMPRADOR' ? 'Comprador' : 'Vendedor'}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -252,7 +252,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F8FA',
+    backgroundColor: '#FDFBF7',
   },
   scrollContent: {
     flexGrow: 1,

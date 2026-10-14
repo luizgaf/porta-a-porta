@@ -209,13 +209,19 @@ export default function CartScreen() {
                 ]}
                 onPress={() => setTipoEntrega(tipo)}
               >
+                <Ionicons
+                  name={tipo === 'PORTARIA' ? 'business-outline' : tipo === 'UNIDADE' ? 'home-outline' : 'chatbubbles-outline'}
+                  size={18}
+                  color={tipoEntrega === tipo ? '#C65D3B' : '#6B7A8A'}
+                  style={{ marginBottom: 2 }}
+                />
                 <Text
                   style={[
                     styles.tipoOptionText,
                     tipoEntrega === tipo && styles.tipoOptionTextSelected,
                   ]}
                 >
-                  {tipo === 'PORTARIA' ? '📦 Portaria' : tipo === 'UNIDADE' ? '🚪 Unidade' : '🤝 Combinar'}
+                  {tipo === 'PORTARIA' ? 'Portaria' : tipo === 'UNIDADE' ? 'Unidade' : 'Combinar'}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -290,7 +296,7 @@ export default function CartScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F8FA',
+    backgroundColor: '#FDFBF7',
   },
   scrollContent: {
     paddingHorizontal: 16,
@@ -444,8 +450,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tipoOptionSelected: {
-    borderColor: '#1E3A5F',
-    backgroundColor: '#E6F4FE',
+    borderColor: '#C65D3B',
+    borderWidth: 2,
+    backgroundColor: '#FFF9F6',
   },
   tipoOptionText: {
     fontSize: 13,
@@ -453,7 +460,7 @@ const styles = StyleSheet.create({
     color: '#3D4A5A',
   },
   tipoOptionTextSelected: {
-    color: '#1E3A5F',
+    color: '#1B2A3A',
     fontWeight: '600',
   },
   summaryCard: {

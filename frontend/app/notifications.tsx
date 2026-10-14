@@ -148,7 +148,7 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F8FA' },
+  container: { flex: 1, backgroundColor: '#FDFBF7' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

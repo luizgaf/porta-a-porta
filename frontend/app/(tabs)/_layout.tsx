@@ -1,10 +1,23 @@
 import React from 'react';
 import { Redirect, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
+import { useCartStore } from '../../store/cartStore';
+import { colors, typography } from '../../constants/design';
+
+type NomeIcone = keyof typeof Ionicons.glyphMap;
+
+const icone = (ativo: NomeIcone, inativo: NomeIcone) =>
+  ({ focused, color }: { focused: boolean; color: string }) => (
+    <Ionicons name={focused ? ativo : inativo} size={22} color={color} />
+  );
 
 export default function TabsLayout() {
   const { isVendedor, isSindico, isLoading, isAuthenticated } = useAuth();
+  const itensNoCarrinho = useCartStore((estado: { totalItems: number }) => estado.totalItems);
+  // Espaço dos botões de navegação do Android (e da barra do iPhone), para a barra de abas não ficar atrás deles
+  const insets = useSafeAreaInsets();
 
   if (isLoading) {
     return null;
@@ -17,87 +30,48 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#1E3A5F',
-        tabBarInactiveTintColor: '#6C7A8A',
+        headerShown: false,
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.mutedSlate,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
+          backgroundColor: colors.surface,
           borderTopWidth: 1,
-          borderTopColor: '#E8EFF5',
-          height: 70,
-          paddingBottom: 10,
+          borderTopColor: colors.border,
+          height: 60 + insets.bottom,
+          paddingTop: 6,
+          paddingBottom: Math.max(insets.bottom, 8),
         },
         tabBarLabelStyle: {
+          fontFamily: typography.labelSmall.fontFamily,
           fontSize: 11,
-          fontWeight: '500',
         },
-        headerShown: false,
+        tabBarBadgeStyle: {
+          backgroundColor: colors.accent,
+          color: colors.textOnAccent,
+          fontSize: 10,
+        },
       }}
     >
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: 'Início',
-          tabBarIcon: ({ focused }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={focused ? '#1E3A5F' : '#6C7A8A'} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="search"
-        options={{
-          title: 'Buscar',
-          tabBarIcon: ({ focused }) => (
-            <Ionicons name={focused ? 'search' : 'search-outline'} size={24} color={focused ? '#1E3A5F' : '#6C7A8A'} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="home" options={{ title: 'Início', tabBarIcon: icone('home', 'home-outline') }} />
+      <Tabs.Screen name="search" options={{ title: 'Buscar', tabBarIcon: icone('search', 'search-outline') }} />
       <Tabs.Screen
         name="cart"
         options={{
           title: 'Carrinho',
-          tabBarIcon: ({ focused }) => (
-            <Ionicons name={focused ? 'cart' : 'cart-outline'} size={24} color={focused ? '#1E3A5F' : '#6C7A8A'} />
-          ),
+          tabBarIcon: icone('bag-handle', 'bag-handle-outline'),
+          tabBarBadge: itensNoCarrinho > 0 ? itensNoCarrinho : undefined,
         }}
       />
-      <Tabs.Screen
-        name="orders"
-        options={{
-          title: 'Pedidos',
-          tabBarIcon: ({ focused }) => (
-            <Ionicons name={focused ? 'list' : 'list-outline'} size={24} color={focused ? '#1E3A5F' : '#6C7A8A'} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="orders" options={{ title: 'Pedidos', tabBarIcon: icone('receipt', 'receipt-outline') }} />
       <Tabs.Screen
         name="seller"
-        options={{
-          href: isVendedor ? undefined : null,
-          title: 'Vendedor',
-          tabBarIcon: ({ focused }) => (
-            <Ionicons name={focused ? 'storefront' : 'storefront-outline'} size={24} color={focused ? '#1E3A5F' : '#6C7A8A'} />
-          ),
-        }}
+        options={{ href: isVendedor ? undefined : null, title: 'Vender', tabBarIcon: icone('storefront', 'storefront-outline') }}
       />
       <Tabs.Screen
         name="moderator"
-        options={{
-          href: isSindico ? undefined : null,
-          title: 'Moderação',
-          tabBarIcon: ({ focused }) => (
-            <Ionicons name={focused ? 'shield' : 'shield-outline'} size={24} color={focused ? '#1E3A5F' : '#6C7A8A'} />
-          ),
-        }}
+        options={{ href: isSindico ? undefined : null, title: 'Moderação', tabBarIcon: icone('shield-checkmark', 'shield-checkmark-outline') }}
       />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Perfil',
-          tabBarIcon: ({ focused }) => (
-            <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={focused ? '#1E3A5F' : '#6C7A8A'} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="profile" options={{ title: 'Perfil', tabBarIcon: icone('person', 'person-outline') }} />
     </Tabs>
   );
 }
