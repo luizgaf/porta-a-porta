@@ -113,6 +113,9 @@ cd frontend
 # Install dependencies
 npm install
 
+# Photo picker used to add product photos (installs the version that matches the Expo SDK)
+npx expo install expo-image-picker
+
 # Start Expo dev server
 npm run dev
 ```

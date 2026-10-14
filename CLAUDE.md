@@ -28,6 +28,8 @@ ItemPedido (id, pedido_id, produto_id, quantidade, preco_unitario)
 Denuncia (id, produto_id, denunciante_id, motivo) — UNIQUE(produto_id, denunciante_id)
 Avaliacao (id, pedido_id, comprador_id, nota, comentario, removida_por) — UNIQUE(pedido_id)
 LogAuditoria (id, sindico_id, acao, entidade_id, justificativa)
+Notificacao (id, condominio_id, usuario_id, tipo, mensagem, entidade_tipo, entidade_id, lida)
+Produto.imagem_url — foto do produto guardada no servidor (pasta backend/uploads, servida em /uploads)
 ```
 
 ### Enums
@@ -92,11 +94,21 @@ npm run prisma:studio
 - `GET /api/avaliacoes` — Listar (VENDEDOR/SINDICO)
 - `GET /api/avaliacoes/produto/:produtoId` — Média por produto
 - `PUT /api/avaliacoes/:pedidoId` — Edição bloqueada (403): avaliações são definitivas
-- `DELETE /api/avaliacoes/:pedidoId` — Remover (SINDICO)
+- `DELETE /api/avaliacoes/:pedidoId` — Remover (SINDICO), corpo `{ justificativa }` obrigatório; grava LogAuditoria `REMOVER_AVALIACAO`
+- Respostas de avaliação nunca identificam o avaliador; o vendedor não recebe nem o pedidoId (RN02)
 
 ### Auditoria (Task 7)
 - `POST /api/auditoria` — Registrar log (SINDICO)
 - `GET /api/auditoria` — Listar logs (SINDICO)
+
+### Foto do produto
+- `PUT /api/produtos/:id/imagem` — Corpo = arquivo (image/jpeg, image/png ou image/webp, até 5 MB - RNF05). Dono ou SINDICO. 415 se não for imagem, 413 se passar do limite
+
+### Notificações internas (avisos, sem push)
+- `GET /api/notificacoes` — Avisos do usuário logado + `naoLidas` (query `apenasNaoLidas=true`)
+- `PATCH /api/notificacoes/:id/lida` — Marca um aviso como lido (só os próprios)
+- `PATCH /api/notificacoes/lidas` — Marca todos como lidos
+- Gerados em: novo pedido (vendedor), mudança de status (comprador; vendedor se o comprador cancelar), quarentena automática (síndico e vendedor), decisão do síndico na quarentena (vendedor)
 
 ---
 
@@ -208,7 +220,7 @@ npm run lint         # ESLint
 ## Próximas Tasks Planejadas
 - ✅ **Task 8**: Frontend completo (Expo Router, telas, navegação, Zustand, Axios JWT)
 - ✅ **Design System**: Tokens, componentes atualizados (Button, Card, Input, Avatar), novos componentes (CategoryChip, DoorTag, ProductCard)
-- [ ] **Task 9**: Notificações Push (Expo Notifications) — *deferred, requires dev client build*
+- ✅ **Task 9**: Notificações internas no app (tabela `notificacoes` + tela de avisos). Push ficou fora do escopo
 - [ ] Task 10: Testes E2E (Detox) + Unit (Jest)
 - [ ] Task 11: Deploy Backend (Docker + Railway/Render)
 - [ ] Task 12: Deploy Frontend (EAS Build + App Store/Play Store)
