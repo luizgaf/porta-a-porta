@@ -28,7 +28,7 @@
   "scripts": {
     "start": "expo start",
     "start:dev": "EXPO_PUBLIC_API_BASE_URL=http://$(ip -4 addr show wlp0s20f3 | grep -oP '(?<=inet\\s)\\d+(\\.\\d+){3}'):3000/api expo start",
-    "start:local": "EXPO_PUBLIC_API_BASE_URL=http://localhost:3000/api expo start",
+    "start:local": "node scripts/start-local.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
