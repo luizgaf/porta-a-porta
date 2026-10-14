@@ -18,13 +18,13 @@ O nome é o nome do produto em minúsculas, sem acentos e com hífens. Também v
 
 | Produto | Arquivo |
 |---|---|
-| Café Torrado Especia | `cafe-torrado-especia.jpg` |
+| Café Torrado Especial | `cafe-torrado-especial.jpg` |
 | Bolacha de Amendoim | `bolacha-de-amendoim.jpg` |
 | Manteiga de Amendoim | `manteiga-de-amendoim.jpg` |
 | Leite Condensado | `leite-condensado.jpg` |
 | Açaí na Tigela | `acai-na-tigela.jpg` |
 | Pão Francês | `pao-frances.jpg` |
-| Ovos de Codornin | `ovos-de-codornin.jpg` |
+| Ovos de Codorna | `ovos-de-codorna.jpg` |
 | Queijo Minas Frescal | `queijo-minas-frescal.jpg` |
 | Creme de Leite | `creme-de-leite.jpg` |
 | Banana Prata | `banana-prata.jpg` |

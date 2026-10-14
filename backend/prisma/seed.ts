@@ -147,7 +147,9 @@ async function main() {
   // Produtos de teste para o vendedor1 no condomínio 1
   const produtos = [
     {
-      nome: 'Café Torrado Especia',
+      nome: 'Café Torrado Especial',
+      // id do nome antigo (com erro de digitação), para o produto não ser duplicado em bancos já populados
+      idSeed: 'seed-prod-café-torrado-especia',
       descricao: 'Café torrado especial 500g - sachê de papel',
       preco: 18.5,
       categoria: 'Bebidas',
@@ -201,8 +203,9 @@ async function main() {
       condominioId: condominios[0].id,
     },
     {
-      nome: 'Ovos de Codornin',
-      descricao: 'Ovos de codornin frescos - bandejada com 15 unidades',
+      nome: 'Ovos de Codorna',
+      idSeed: 'seed-prod-ovos-de-codornin',
+      descricao: 'Ovos de codorna frescos - bandeja com 15 unidades',
       preco: 28.0,
       categoria: 'Ovos & Carnes',
       status: 'ATIVO',
@@ -291,7 +294,7 @@ async function main() {
   let fotos = 0;
   for (const produto of produtos) {
     // O mesmo id no where e no create, para o seed poder ser executado mais de uma vez
-    const id = `seed-prod-${produto.nome.toLowerCase().replace(/\s+/g, '-')}`;
+    const id = produto.idSeed ?? `seed-prod-${produto.nome.toLowerCase().replace(/\s+/g, '-')}`;
 
     // Usa a foto padrão, sem substituir uma foto que o vendedor já tenha enviado pelo app
     const fotoSeed = copiarFotoSeed(produto.nome);
