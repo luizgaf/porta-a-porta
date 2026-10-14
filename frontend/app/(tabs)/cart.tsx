@@ -176,6 +176,8 @@ export default function CartScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <FlatList
+          // A rolagem é da tela; a lista não rola sozinha (evita listas aninhadas)
+          scrollEnabled={false}
           data={items}
           renderItem={renderItem}
           keyExtractor={(item) => item.produto.id}

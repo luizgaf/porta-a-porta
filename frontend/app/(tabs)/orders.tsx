@@ -8,6 +8,7 @@ import { Card, Button, Avatar } from '../../components/ui';
 import { STATUS_LABELS, TIPO_ENTREGA_LABELS, ACAO_STATUS_LABELS } from '../../constants';
 import { Pedido, StatusPedido } from '../../types';
 import { formatBRL } from '../../utils/format';
+import { aoChegarPertoDoFim } from '../../utils/rolagem';
 
 const STATUS_COLORS: Record<StatusPedido, string> = {
   PENDENTE: '#FFC107',
@@ -200,6 +201,8 @@ export default function OrdersScreen() {
 
   return (
     <ScrollView
+      onScroll={aoChegarPertoDoFim(handleLoadMore)}
+      scrollEventThrottle={200}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#1E3A5F']} />
       }
@@ -229,11 +232,11 @@ export default function OrdersScreen() {
         </View>
       ) : (
         <FlatList
+          // A rolagem é da tela; a lista não rola sozinha (evita listas aninhadas)
+          scrollEnabled={false}
           data={pedidos}
           renderItem={renderPedido}
           keyExtractor={(item) => item.id}
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
           ListFooterComponent={
             pagina < totalPaginas && !loading ? (
               <ActivityIndicator size="small" color="#1E3A5F" style={styles.loadMoreIndicator} />

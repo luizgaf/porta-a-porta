@@ -7,6 +7,7 @@ import { useApi } from '../../hooks/useApi';
 import { Card, Button, Input } from '../../components/ui';
 import { STATUS_LABELS } from '../../constants';
 import { Avaliacao, Denuncia, Produto } from '../../types';
+import { aoChegarPertoDoFim } from '../../utils/rolagem';
 
 export default function ModeratorScreen() {
   const router = useRouter();
@@ -259,6 +260,8 @@ export default function ModeratorScreen() {
 
   return (
     <ScrollView
+      onScroll={aoChegarPertoDoFim(() => aba === 'DENUNCIAS' && handleLoadMore())}
+      scrollEventThrottle={200}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#1E3A5F']} />
       }
@@ -309,11 +312,11 @@ export default function ModeratorScreen() {
         </View>
       ) : (
         <FlatList
+          // A rolagem é da tela; a lista não rola sozinha (evita listas aninhadas)
+          scrollEnabled={false}
           data={denuncias}
           renderItem={renderDenuncia}
           keyExtractor={(item) => item.id}
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
           ListFooterComponent={
             pagina < totalPaginas && !loading ? (
               <ActivityIndicator size="small" color="#1E3A5F" style={styles.loadMoreIndicator} />
@@ -382,6 +385,8 @@ export default function ModeratorScreen() {
                     <Text style={styles.modalEmptyText}>Nenhuma denúncia detalhada</Text>
                   ) : (
                     <FlatList
+                      // A rolagem é da tela; a lista não rola sozinha (evita listas aninhadas)
+                      scrollEnabled={false}
                       data={denunciasProduto}
                       renderItem={({ item }) => (
                         <View style={styles.modalDenunciaItem}>

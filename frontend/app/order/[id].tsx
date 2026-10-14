@@ -273,6 +273,8 @@ export default function OrderDetailScreen() {
       <Card style={styles.itemsCard}>
         <Text style={styles.sectionTitle}>Itens do Pedido ({pedido.itens.length})</Text>
         <FlatList
+          // A rolagem é da tela; a lista não rola sozinha (evita listas aninhadas)
+          scrollEnabled={false}
           data={pedido.itens}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}

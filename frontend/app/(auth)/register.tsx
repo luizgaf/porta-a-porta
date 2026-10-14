@@ -217,6 +217,8 @@ export default function RegisterScreen() {
               <View style={styles.modalContent}>
                 <Text style={styles.modalTitle}>Selecione um Condomínio</Text>
                 <FlatList
+                  // A rolagem é da tela; a lista não rola sozinha (evita listas aninhadas)
+                  scrollEnabled={false}
                   data={condominios}
                   keyExtractor={(item) => item.id}
                   showsVerticalScrollIndicator={false}
