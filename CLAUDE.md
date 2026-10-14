@@ -32,6 +32,13 @@ Notificacao (id, condominio_id, usuario_id, tipo, mensagem, entidade_tipo, entid
 Produto.imagem_url — foto do produto guardada no servidor (pasta backend/uploads, servida em /uploads)
 ```
 
+### Perfis (com herança, em `backend/src/middleware/auth.ts` e `frontend/store/authStore.ts`)
+- COMPRADOR: compra, avalia e denuncia
+- VENDEDOR extends COMPRADOR: também anuncia e atende pedidos
+- SINDICO extends VENDEDOR: também modera (denúncias, quarentena, avaliações, auditoria)
+- `requireRole('COMPRADOR')` aceita os três perfis. Ninguém compra o próprio produto (400 `PRODUTO_PROPRIO`)
+- Pedidos: cada usuário vê os pedidos em que é comprador ou vendedor; quem vende conduz o status e quem comprou só cancela
+
 ### Enums
 - `TipoUsuario`: COMPRADOR, VENDEDOR, SINDICO
 - `StatusProduto`: ATIVO, PAUSADO, QUARENTENA, EXCLUIDO

@@ -40,7 +40,7 @@ const querySchema = z.object({
 });
 
 // POST /api/avaliacoes - Criar avaliação (apenas comprador do pedido)
-router.post('/', authMiddleware, requireRole('COMPRADOR', 'SINDICO'), asyncHandler(async (req: AuthRequest, res: Response) => {
+router.post('/', authMiddleware, requireRole('COMPRADOR'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = createAvaliacaoSchema.parse(req.body);
 
   // Verifica se pedido existe, pertence ao condomínio e está entregue
@@ -57,7 +57,7 @@ router.post('/', authMiddleware, requireRole('COMPRADOR', 'SINDICO'), asyncHandl
   }
 
   // Verifica se o usuário é o comprador do pedido
-  if (pedido.compradorId !== req.user!.id && req.user!.tipo !== 'SINDICO') {
+  if (pedido.compradorId !== req.user!.id) {
     throw new AppError(403, 'Apenas o comprador pode avaliar este pedido', 'FORBIDDEN');
   }
 

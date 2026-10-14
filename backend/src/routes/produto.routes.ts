@@ -33,7 +33,7 @@ const querySchema = z.object({
 });
 
 // POST /api/produtos - Criar produto (apenas vendedor)
-router.post('/', authMiddleware, requireRole('VENDEDOR', 'SINDICO'), asyncHandler(async (req: AuthRequest, res: Response) => {
+router.post('/', authMiddleware, requireRole('VENDEDOR'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = createProdutoSchema.parse(req.body);
 
   // RN01: Verificar limite de 15 produtos ATIVOS por vendedor
@@ -121,7 +121,7 @@ router.get('/', authMiddleware, asyncHandler(async (req: AuthRequest, res: Respo
 }));
 
 // GET /api/produtos/meus - Meus produtos (vendedor)
-router.get('/meus', authMiddleware, requireRole('VENDEDOR', 'SINDICO'), asyncHandler(async (req: AuthRequest, res: Response) => {
+router.get('/meus', authMiddleware, requireRole('VENDEDOR'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const query = querySchema.parse(req.query);
   const { pagina, limite, status } = query;
 
