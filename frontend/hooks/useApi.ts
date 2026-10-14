@@ -10,6 +10,7 @@ import type {
   LoginCredentials,
   RegisterData,
   Condominio,
+  Notificacao,
 } from '../types';
 
 export const useApi = () => {
@@ -141,8 +142,27 @@ export const useApi = () => {
     return api.post<{ avaliacao: Avaliacao }>('/avaliacoes', data);
   }, []);
 
-  const deleteAvaliacao = useCallback(async (pedidoId: string) => {
-    return api.delete<{ message: string }>(`/avaliacoes/${pedidoId}`);
+  // Remoção pelo síndico; a justificativa fica registrada na auditoria (RN02)
+  const deleteAvaliacao = useCallback(async (pedidoId: string, justificativa: string) => {
+    return api.delete<{ message: string }>(`/avaliacoes/${pedidoId}`, { justificativa });
+  }, []);
+
+  // Foto do produto (uma por produto, até 5 MB)
+  const uploadImagemProduto = useCallback(async (produtoId: string, uri: string, tipo: string) => {
+    return api.uploadImagemProduto<{ produto: Produto }>(produtoId, uri, tipo);
+  }, []);
+
+  // Notificações internas (avisos)
+  const getNotificacoes = useCallback(async (params?: { pagina?: number; limite?: number; apenasNaoLidas?: boolean }) => {
+    return api.get<Paginacao<Notificacao> & { notificacoes: Notificacao[]; naoLidas: number }>('/notificacoes', params);
+  }, []);
+
+  const marcarNotificacaoLida = useCallback(async (id: string) => {
+    return api.patch<{ message: string }>(`/notificacoes/${id}/lida`);
+  }, []);
+
+  const marcarTodasNotificacoesLidas = useCallback(async () => {
+    return api.patch<{ atualizadas: number }>('/notificacoes/lidas');
   }, []);
 
   // Denúncias
@@ -201,6 +221,14 @@ export const useApi = () => {
     getAvaliacoesProduto,
     createAvaliacao,
     deleteAvaliacao,
+
+    // Foto do produto
+    uploadImagemProduto,
+
+    // Notificações
+    getNotificacoes,
+    marcarNotificacaoLida,
+    marcarTodasNotificacoesLidas,
 
     // Denúncias
     getDenuncias,

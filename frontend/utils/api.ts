@@ -94,9 +94,32 @@ class ApiClient {
     return response.data;
   }
 
-  async delete<T>(url: string) {
-    const response = await this.client.delete<T>(url);
+  async delete<T>(url: string, data?: unknown) {
+    const response = await this.client.delete<T>(url, { data });
     return response.data;
+  }
+
+  // Envia a foto do produto. O corpo é o próprio arquivo, lido a partir da URI local
+  // escolhida no aparelho; a API aceita JPEG, PNG ou WebP de até 5 MB (RNF05).
+  async uploadImagemProduto<T>(produtoId: string, uri: string, tipo: string) {
+    const arquivo = await (await fetch(uri)).blob();
+    const token = await AsyncStorage.getItem(TOKEN_KEY);
+    const resposta = await fetch(`${API_BASE_URL}/produtos/${produtoId}/imagem`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': tipo,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: arquivo,
+    });
+    const corpo = await resposta.json().catch(() => ({}));
+    if (!resposta.ok) {
+      const err = new Error(corpo.error || 'Não foi possível enviar a foto') as Error & { code?: string; statusCode: number };
+      err.code = corpo.code;
+      err.statusCode = resposta.status;
+      throw err;
+    }
+    return corpo as T;
   }
 
   // Setar token manualmente (após login)

@@ -6,12 +6,12 @@ import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
 import { Card, Button, Input } from '../../components/ui';
 import { STATUS_LABELS } from '../../constants';
-import { Denuncia, Produto } from '../../types';
+import { Avaliacao, Denuncia, Produto } from '../../types';
 
 export default function ModeratorScreen() {
   const router = useRouter();
   const { isSindico } = useAuth();
-  const { getDenuncias, getDenunciasProduto, updateDenunciaStatus, getProduto } = useApi();
+  const { getDenuncias, getDenunciasProduto, updateDenunciaStatus, getProduto, getAvaliacoes, deleteAvaliacao } = useApi();
 
   const [denuncias, setDenuncias] = useState<Denuncia[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,6 +25,58 @@ export default function ModeratorScreen() {
   const [acaoPendente, setAcaoPendente] = useState<'QUARENTENA' | 'RESTAURAR' | null>(null);
   const [justificativa, setJustificativa] = useState('');
   const [processando, setProcessando] = useState(false);
+
+  // Aba de avaliações: o síndico remove avaliações abusivas, com justificativa (RN02)
+  const [aba, setAba] = useState<'DENUNCIAS' | 'AVALIACOES'>('DENUNCIAS');
+  const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([]);
+  const [loadingAvaliacoes, setLoadingAvaliacoes] = useState(false);
+  const [avaliacaoParaRemover, setAvaliacaoParaRemover] = useState<Avaliacao | null>(null);
+  const [justificativaRemocao, setJustificativaRemocao] = useState('');
+  const [removendo, setRemovendo] = useState(false);
+
+  const carregarAvaliacoes = useCallback(async () => {
+    setLoadingAvaliacoes(true);
+    try {
+      const response = await getAvaliacoes({ limite: 50 });
+      setAvaliacoes(response.avaliacoes || []);
+    } catch (error: any) {
+      console.error('Erro ao carregar avaliações:', error);
+    } finally {
+      setLoadingAvaliacoes(false);
+      setRefreshing(false);
+    }
+  }, [getAvaliacoes]);
+
+  const trocarAba = (novaAba: 'DENUNCIAS' | 'AVALIACOES') => {
+    setAba(novaAba);
+    if (novaAba === 'AVALIACOES' && avaliacoes.length === 0) carregarAvaliacoes();
+  };
+
+  const fecharRemocao = () => {
+    setAvaliacaoParaRemover(null);
+    setJustificativaRemocao('');
+  };
+
+  const handleRemoverAvaliacao = async () => {
+    if (!avaliacaoParaRemover?.pedidoId) return;
+    if (justificativaRemocao.trim().length < 5) {
+      Alert.alert('Justificativa obrigatória', 'Explique o motivo da remoção (mínimo 5 caracteres).');
+      return;
+    }
+    setRemovendo(true);
+    try {
+      await deleteAvaliacao(avaliacaoParaRemover.pedidoId, justificativaRemocao.trim());
+      setAvaliacoes(prev =>
+        prev.map(a => (a.id === avaliacaoParaRemover.id ? { ...a, removidaPor: 'sindico' } : a))
+      );
+      fecharRemocao();
+      Alert.alert('Avaliação removida', 'A remoção foi registrada no log de auditoria.');
+    } catch (error: any) {
+      Alert.alert('Erro', error.message || 'Não foi possível remover a avaliação');
+    } finally {
+      setRemovendo(false);
+    }
+  };
 
   const carregarDenuncias = useCallback(async (paginaAtual = 1, isRefresh = false) => {
     if (!isRefresh) setLoading(true);
@@ -52,7 +104,8 @@ export default function ModeratorScreen() {
 
   const handleRefresh = () => {
     setRefreshing(true);
-    carregarDenuncias(1, true);
+    if (aba === 'AVALIACOES') carregarAvaliacoes();
+    else carregarDenuncias(1, true);
   };
 
   const handleLoadMore = () => {
@@ -154,6 +207,38 @@ export default function ModeratorScreen() {
     </TouchableOpacity>
   );
 
+  const renderAvaliacao = (item: Avaliacao) => {
+    const produtos = (item.pedido?.itens || []).map(i => i.produto?.nome).filter(Boolean).join(', ');
+    const removida = !!item.removidaPor;
+    return (
+      <View key={item.id} style={[styles.denunciaCard, removida && styles.avaliacaoRemovida]}>
+        <View style={styles.avaliacaoTopo}>
+          <View style={styles.estrelas} accessibilityLabel={`Nota ${item.nota} de 5`}>
+            {[1, 2, 3, 4, 5].map(n => (
+              <Ionicons key={n} name={n <= item.nota ? 'star' : 'star-outline'} size={16} color="#FFC107" />
+            ))}
+          </View>
+          <Text style={styles.denunciaDate}>
+            {new Date(item.criadoEm).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+          </Text>
+        </View>
+        {produtos ? <Text style={styles.denunciaProdutoNome}>{produtos}</Text> : null}
+        <Text style={styles.denunciaDenunciante}>Avaliação anônima</Text>
+        {item.comentario ? <Text style={styles.denunciaMotivo}>"{item.comentario}"</Text> : null}
+        <View style={styles.denunciaActions}>
+          {removida ? (
+            <View style={styles.removidaTag}>
+              <Ionicons name="eye-off-outline" size={14} color="#6C7A8A" />
+              <Text style={styles.removidaTexto}>Removida pelo síndico</Text>
+            </View>
+          ) : (
+            <Button title="Remover avaliação" onPress={() => setAvaliacaoParaRemover(item)} variant="outline" size="sm" fullWidth />
+          )}
+        </View>
+      </View>
+    );
+  };
+
   if (!isSindico) {
     return (
       <View style={styles.unauthorizedContainer}>
@@ -183,11 +268,40 @@ export default function ModeratorScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Painel de Moderação</Text>
         <Text style={styles.headerSubtitle}>
-          {denuncias.length} denúncia(s) no condomínio
+          {aba === 'DENUNCIAS'
+            ? `${denuncias.length} denúncia(s) no condomínio`
+            : `${avaliacoes.filter(a => !a.removidaPor).length} avaliação(ões) visível(is) no condomínio`}
         </Text>
       </View>
 
-      {denuncias.length === 0 ? (
+      <View style={styles.abas}>
+        {(['DENUNCIAS', 'AVALIACOES'] as const).map(opcao => (
+          <TouchableOpacity
+            key={opcao}
+            style={[styles.aba, aba === opcao && styles.abaAtiva]}
+            onPress={() => trocarAba(opcao)}
+            accessibilityState={{ selected: aba === opcao }}
+          >
+            <Text style={[styles.abaTexto, aba === opcao && styles.abaTextoAtivo]}>
+              {opcao === 'DENUNCIAS' ? 'Denúncias' : 'Avaliações'}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {aba === 'AVALIACOES' ? (
+        loadingAvaliacoes && avaliacoes.length === 0 ? (
+          <ActivityIndicator size="large" color="#1E3A5F" style={styles.loadMoreIndicator} />
+        ) : avaliacoes.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="star-outline" size={48} color="#9AA8B8" />
+            <Text style={styles.emptyText}>Nenhuma avaliação</Text>
+            <Text style={styles.emptySubtext}>As avaliações dos pedidos entregues aparecem aqui.</Text>
+          </View>
+        ) : (
+          <View style={styles.listaAvaliacoes}>{avaliacoes.map(renderAvaliacao)}</View>
+        )
+      ) : denuncias.length === 0 ? (
         <View style={styles.emptyState}>
           <Ionicons name="shield-checkmark-outline" size={48} color="#28A745" />
           <Text style={styles.emptyText}>Nenhuma denúncia</Text>
@@ -207,6 +321,38 @@ export default function ModeratorScreen() {
           }
           ItemSeparatorComponent={() => <View style={styles.separator} />}
         />
+      )}
+
+      {/* Remoção de avaliação */}
+      {avaliacaoParaRemover && (
+        <Modal visible={true} animationType="slide" transparent={true} onRequestClose={fecharRemocao}>
+          <TouchableOpacity style={styles.modalOverlay} onPress={fecharRemocao} activeOpacity={1}>
+            <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Remover avaliação</Text>
+                <TouchableOpacity onPress={fecharRemocao}>
+                  <Ionicons name="close" size={24} color="#6C7A8A" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView contentContainerStyle={styles.modalBody}>
+                {avaliacaoParaRemover.comentario ? (
+                  <Text style={styles.modalDenunciaMotivo}>"{avaliacaoParaRemover.comentario}"</Text>
+                ) : null}
+                <View style={styles.modalActions}>
+                  <Input
+                    label="Justificativa *"
+                    placeholder="Ex.: comentário ofensivo, pedido do vendedor..."
+                    value={justificativaRemocao}
+                    onChangeText={setJustificativaRemocao}
+                    multiline
+                  />
+                  <Button title="Confirmar remoção" onPress={handleRemoverAvaliacao} variant="danger" loading={removendo} fullWidth />
+                  <Button title="Cancelar" onPress={fecharRemocao} variant="ghost" fullWidth />
+                </View>
+              </ScrollView>
+            </View>
+          </TouchableOpacity>
+        </Modal>
       )}
 
       {/* Detail Modal */}
@@ -306,6 +452,56 @@ const getStatusColor = (status: string) => {
 };
 
 const styles = StyleSheet.create({
+  abas: {
+    flexDirection: 'row',
+    backgroundColor: '#E8EFF5',
+    borderRadius: 10,
+    padding: 4,
+    marginBottom: 16,
+  },
+  aba: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  abaAtiva: {
+    backgroundColor: '#FFFFFF',
+  },
+  abaTexto: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6C7A8A',
+  },
+  abaTextoAtivo: {
+    color: '#1E3A5F',
+  },
+  listaAvaliacoes: {
+    gap: 12,
+  },
+  avaliacaoTopo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  estrelas: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  avaliacaoRemovida: {
+    opacity: 0.6,
+  },
+  removidaTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+  },
+  removidaTexto: {
+    fontSize: 13,
+    color: '#6C7A8A',
+  },
   scrollContent: {
     paddingHorizontal: 16,
     paddingBottom: 100,

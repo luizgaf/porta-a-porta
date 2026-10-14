@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, FlatList, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, FlatList } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
-import { Card, Button, Avatar } from '../../components/ui';
+import { Card, Button, Avatar, ProductImage } from '../../components/ui';
 import { STATUS_LABELS, TIPO_ENTREGA_LABELS, ACAO_STATUS_LABELS } from '../../constants';
 import { Pedido, ItemPedido, StatusPedido } from '../../types';
 import { formatBRL, toNumber } from '../../utils/format';
@@ -126,11 +126,7 @@ export default function OrderDetailScreen() {
   const renderItem = ({ item }: { item: ItemPedido }) => (
     <View style={styles.itemRow}>
       <View style={styles.itemImageContainer}>
-        <Image
-          source={{ uri: 'https://via.placeholder.com/80x80/E6F4FE/1E3A5F?text=Produto' }}
-          style={styles.itemImage}
-          resizeMode="cover"
-        />
+        <ProductImage url={item.produto?.imagemUrl} style={styles.itemImage} iconSize={24} />
       </View>
       <View style={styles.itemInfo} >
         <Text style={styles.itemNome}>{item.produto?.nome || 'Produto'}</Text>
@@ -265,16 +261,6 @@ export default function OrderDetailScreen() {
                     <Text style={styles.infoLabel}>Comprador</Text>
                     <Text style={styles.infoValue}>{pedido.comprador.nome}</Text>
                     <Text style={styles.infoSubValue}>{pedido.comprador.unidade}</Text>
-                  </View>
-                </View>
-              )}
-              {isVendedor && pedido.itens[0]?.produto?.vendedorId === usuario?.id && pedido.comprador && (
-                <View style={styles.infoItem}>
-                  <Avatar name={pedido.comprador.nome} size="sm" />
-                  <View>
-                    <Text style={styles.infoLabel}>Comprador</Text>
-                    <Text style={styles.infoValue}>{pedido.comprador.nome}</Text>
-                    <Text style={styles.infoSubValue}>{pedido.comprador.unidade} • {pedido.comprador.email}</Text>
                   </View>
                 </View>
               )}

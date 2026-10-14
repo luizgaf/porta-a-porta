@@ -1,105 +1,115 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Card } from '../../components/ui';
 
+// Privacidade por padrão: não há opções para ligar ou desligar. As regras abaixo valem para
+// todos os moradores e são aplicadas pelo servidor, sem depender de configuração.
+
+type Regra = {
+  icone: keyof typeof Ionicons.glyphMap;
+  titulo: string;
+  descricao: string;
+};
+
+const GRUPOS: { titulo: string; regras: Regra[] }[] = [
+  {
+    titulo: 'O que os outros moradores veem',
+    regras: [
+      {
+        icone: 'home-outline',
+        titulo: 'Só o seu condomínio',
+        descricao: 'Anúncios, pedidos e perfis ficam restritos aos moradores do mesmo condomínio.',
+      },
+      {
+        icone: 'person-outline',
+        titulo: 'Nome e unidade, quando necessário',
+        descricao: 'Seu nome e sua unidade aparecem apenas nos seus anúncios e para o vendedor dos seus pedidos, para a entrega. Seu e-mail e seu CPF não são exibidos a outros moradores.',
+      },
+    ],
+  },
+  {
+    titulo: 'Avaliações e denúncias',
+    regras: [
+      {
+        icone: 'star-outline',
+        titulo: 'Avaliações anônimas',
+        descricao: 'O vendedor e os demais moradores veem a nota e o comentário, nunca quem avaliou. A avaliação não pode ser editada depois do envio.',
+      },
+      {
+        icone: 'flag-outline',
+        titulo: 'Denúncias anônimas',
+        descricao: 'Ninguém vê quem denunciou, nem o vendedor nem o síndico. O vínculo com o autor serve apenas para contar denúncias distintas e impedir repetições.',
+      },
+      {
+        icone: 'document-text-outline',
+        titulo: 'Moderação registrada',
+        descricao: 'Toda decisão do síndico (suspender ou restaurar um anúncio, remover uma avaliação) fica registrada com a justificativa.',
+      },
+    ],
+  },
+  {
+    titulo: 'Segurança',
+    regras: [
+      {
+        icone: 'lock-closed-outline',
+        titulo: 'Senha protegida',
+        descricao: 'Sua senha é guardada de forma criptografada e não pode ser vista por ninguém, nem pelo síndico.',
+      },
+      {
+        icone: 'card-outline',
+        titulo: 'Sem dados de pagamento',
+        descricao: 'O aplicativo não processa pagamentos nem guarda dados de cartão. O pagamento é combinado diretamente entre vizinhos.',
+      },
+    ],
+  },
+];
+
 export default function PrivacySettingsScreen() {
   const router = useRouter();
-
-  // Estas funcionalidades ainda não têm tela nem endpoint no backend
-  const emBreve = () =>
-    Alert.alert('Em breve', 'Esta funcionalidade ainda não está disponível. Fale com o síndico do seu condomínio.');
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} accessibilityLabel="Voltar">
           <Ionicons name="chevron-back" size={28} color="#1E3A5F" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Privacidade e Segurança</Text>
+        <View style={{ width: 28 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Card style={styles.card}>
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="eye-outline" size={24} color="#1E3A5F" style={styles.settingIcon} />
-              <View>
-                <Text style={styles.settingTitle}>Perfil Visível</Text>
-                <Text style={styles.settingDesc}>Outros moradores podem ver seu nome e unidade</Text>
-              </View>
-            </View>
-            <Switch
-              value={true}
-              onValueChange={() => {}}
-              thumbColor="#FFFFFF"
-              trackColor={{ false: '#D1E3F0', true: '#1E3A5F' }}
-            />
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="location-outline" size={24} color="#1E3A5F" style={styles.settingIcon} />
-              <View>
-                <Text style={styles.settingTitle}>Mostrar Unidade</Text>
-                <Text style={styles.settingDesc}>Exibir seu bloco/apartamento nos pedidos e avaliações</Text>
-              </View>
-            </View>
-            <Switch
-              value={true}
-              onValueChange={() => {}}
-              thumbColor="#FFFFFF"
-              trackColor={{ false: '#D1E3F0', true: '#1E3A5F' }}
-            />
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="shield-checkmark-outline" size={24} color="#1E3A5F" style={styles.settingIcon} />
-              <View>
-                <Text style={styles.settingTitle}>Avaliações Anônimas</Text>
-                <Text style={styles.settingDesc}>Suas avaliações aparecem sem seu nome para vendedores</Text>
-              </View>
-            </View>
-            <Switch
-              value={false}
-              onValueChange={() => {}}
-              thumbColor="#FFFFFF"
-              trackColor={{ false: '#D1E3F0', true: '#1E3A5F' }}
-            />
-          </View>
-        </Card>
+        <View style={styles.destaque}>
+          <Ionicons name="shield-checkmark-outline" size={28} color="#1E3A5F" />
+          <Text style={styles.destaqueTexto}>
+            Sua privacidade é protegida por padrão. Não há nada para configurar: as regras abaixo valem para todos os moradores.
+          </Text>
+        </View>
 
-        <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>Dados e Conta</Text>
-          <TouchableOpacity style={styles.actionRow} onPress={emBreve}>
-            <Ionicons name="download-outline" size={24} color="#1E3A5F" style={styles.settingIcon} />
-            <Text style={styles.actionText}>Exportar Meus Dados</Text>
-            <Ionicons name="chevron-forward" size={20} color="#9AA8B8" />
-          </TouchableOpacity>
-          <View style={styles.divider} />
-          <TouchableOpacity style={styles.actionRow} onPress={emBreve}>
-            <Ionicons name="trash-outline" size={24} color="#DC3545" style={styles.settingIcon} />
-            <Text style={[styles.actionText, { color: '#DC3545' }]}>Excluir Conta</Text>
-            <Ionicons name="chevron-forward" size={20} color="#9AA8B8" />
-          </TouchableOpacity>
-        </Card>
+        {GRUPOS.map((grupo) => (
+          <View key={grupo.titulo} style={styles.grupo}>
+            <Text style={styles.sectionTitle}>{grupo.titulo}</Text>
+            <Card style={styles.card}>
+              {grupo.regras.map((regra, indice) => (
+                <View key={regra.titulo}>
+                  {indice > 0 && <View style={styles.divider} />}
+                  <View style={styles.regra}>
+                    <Ionicons name={regra.icone} size={22} color="#1E3A5F" style={styles.regraIcone} />
+                    <View style={styles.regraTexto}>
+                      <Text style={styles.regraTitulo}>{regra.titulo}</Text>
+                      <Text style={styles.regraDescricao}>{regra.descricao}</Text>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </Card>
+          </View>
+        ))}
 
-        <Card style={styles.card}>
-          <Text style={styles.sectionTitle}>Segurança</Text>
-          <TouchableOpacity style={styles.actionRow} onPress={emBreve}>
-            <Ionicons name="lock-closed-outline" size={24} color="#1E3A5F" style={styles.settingIcon} />
-            <Text style={styles.actionText}>Alterar Senha</Text>
-            <Ionicons name="chevron-forward" size={20} color="#9AA8B8" />
-          </TouchableOpacity>
-          <View style={styles.divider} />
-          <TouchableOpacity style={styles.actionRow} onPress={emBreve}>
-            <Ionicons name="dice-outline" size={24} color="#1E3A5F" style={styles.settingIcon} />
-            <Text style={styles.actionText}>Sessões Ativas</Text>
-            <Ionicons name="chevron-forward" size={20} color="#9AA8B8" />
-          </TouchableOpacity>
-        </Card>
+        <Text style={styles.rodape}>
+          Para corrigir seus dados ou excluir sua conta, fale com o síndico do seu condomínio.
+        </Text>
       </ScrollView>
     </View>
   );
@@ -129,34 +139,58 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 40,
-    gap: 16,
+    gap: 20,
+  },
+  destaque: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#E8EFF5',
+  },
+  destaqueTexto: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#1E3A5F',
+  },
+  grupo: {
+    gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#6C7A8A',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    paddingHorizontal: 4,
   },
   card: {
     borderWidth: 1,
     borderColor: '#E8EFF5',
+    paddingVertical: 4,
   },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-  },
-  settingInfo: {
+  regra: {
     flexDirection: 'row',
     gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  regraIcone: {
+    marginTop: 1,
+  },
+  regraTexto: {
     flex: 1,
   },
-  settingIcon: {
-    marginTop: 2,
-  },
-  settingTitle: {
+  regraTitulo: {
     fontSize: 15,
     fontWeight: '600',
     color: '#1E3A5F',
   },
-  settingDesc: {
+  regraDescricao: {
     fontSize: 13,
+    lineHeight: 19,
     color: '#6C7A8A',
     marginTop: 2,
   },
@@ -165,26 +199,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8EFF5',
     marginHorizontal: 16,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E3A5F',
-    marginBottom: 8,
+  rodape: {
+    fontSize: 13,
+    color: '#6C7A8A',
+    textAlign: 'center',
     paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-  },
-  actionText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#1E3A5F',
-    flex: 1,
-    marginLeft: 12,
   },
 });

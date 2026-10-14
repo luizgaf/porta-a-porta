@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, ScrollView, ActivityIndicator, Image } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
@@ -12,7 +12,17 @@ import { colors, spacing, typography, shadows, borderRadius, layout } from '../.
 function HomeScreen() {
   const router = useRouter();
   const { usuario, isVendedor, isSindico } = useAuth();
-  const { getProdutos } = useApi();
+  const { getProdutos, getNotificacoes } = useApi();
+  const [avisosNaoLidos, setAvisosNaoLidos] = useState(0);
+
+  // Atualiza a contagem de avisos sempre que a vitrine volta a ficar visível
+  useFocusEffect(
+    useCallback(() => {
+      getNotificacoes({ limite: 1 })
+        .then((resposta) => setAvisosNaoLidos(resposta.naoLidas))
+        .catch(() => undefined);
+    }, [getNotificacoes])
+  );
 
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,6 +63,9 @@ function HomeScreen() {
   const handleRefresh = () => {
     setRefreshing(true);
     carregarProdutos(1, true);
+    getNotificacoes({ limite: 1 })
+      .then((resposta) => setAvisosNaoLidos(resposta.naoLidas))
+      .catch(() => undefined);
   };
 
   const handleLoadMore = () => {
@@ -97,6 +110,19 @@ function HomeScreen() {
               {usuario?.nome?.split(' ')[0] || 'Vizinho'}
             </Text>
           </View>
+          <TouchableOpacity
+            style={styles.sino}
+            onPress={() => router.push('/notifications')}
+            activeOpacity={0.8}
+            accessibilityLabel={avisosNaoLidos > 0 ? `Avisos, ${avisosNaoLidos} não lidos` : 'Avisos'}
+          >
+            <Ionicons name={avisosNaoLidos > 0 ? 'notifications' : 'notifications-outline'} size={24} color={colors.primary} />
+            {avisosNaoLidos > 0 && (
+              <View style={styles.sinoContador}>
+                <Text style={styles.sinoContadorTexto}>{avisosNaoLidos > 9 ? '9+' : avisosNaoLidos}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
           <Avatar name={usuario?.nome || 'U'} size="md" />
         </View>
 
@@ -212,6 +238,34 @@ const styles = StyleSheet.create({
   },
   welcome: {
     flex: 1,
+  },
+  sino: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginRight: spacing.sm,
+  },
+  sinoContador: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accent,
+  },
+  sinoContadorTexto: {
+    color: colors.textOnAccent,
+    fontSize: 11,
+    fontWeight: '700',
   },
   welcomeLabel: {
     color: colors.textSecondary,

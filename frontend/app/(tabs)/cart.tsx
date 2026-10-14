@@ -1,13 +1,41 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useCartStore } from '../../store/cartStore';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
-import { Card, Button, Input } from '../../components/ui';
+import { Card, Button, Input, ProductImage } from '../../components/ui';
 import { Produto } from '../../types';
 import { formatBRL, toNumber } from '../../utils/format';
+
+// HU02: o comprador escolhe uma janela de entrega ou retirada em vez de digitar o horário
+const PERIODOS = [
+  { id: 'MANHA', nome: 'Manhã', faixa: '8h-12h', fim: 12 },
+  { id: 'TARDE', nome: 'Tarde', faixa: '12h-18h', fim: 18 },
+  { id: 'NOITE', nome: 'Noite', faixa: '18h-21h', fim: 21 },
+] as const;
+
+type Dia = 'HOJE' | 'AMANHA';
+type PeriodoId = (typeof PERIODOS)[number]['id'];
+
+const dataDoDia = (dia: Dia) => {
+  const data = new Date();
+  if (dia === 'AMANHA') data.setDate(data.getDate() + 1);
+  return data;
+};
+
+// Ex.: "Qui, 15/10 - Noite (18h-21h)". Grava a data, para o texto continuar correto nos dias seguintes
+const montarJanela = (dia: Dia, periodoId: PeriodoId) => {
+  const periodo = PERIODOS.find(p => p.id === periodoId)!;
+  const data = dataDoDia(dia);
+  const semana = data.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
+  const diaMes = data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  return `${semana.charAt(0).toUpperCase()}${semana.slice(1)}, ${diaMes} - ${periodo.nome} (${periodo.faixa})`;
+};
+
+// Hoje, só os períodos que ainda não terminaram
+const periodoDisponivel = (dia: Dia, fim: number) => dia === 'AMANHA' || new Date().getHours() < fim;
 
 export default function CartScreen() {
   const router = useRouter();
@@ -17,7 +45,15 @@ export default function CartScreen() {
 
   const [unidadeEntrega, setUnidadeEntrega] = useState(usuario?.unidade || '');
   const [tipoEntrega, setTipoEntrega] = useState<'PORTARIA' | 'UNIDADE' | 'COMBINAR'>('PORTARIA');
-  const [janelaHorario, setJanelaHorario] = useState('');
+  const [dia, setDia] = useState<Dia>(() => (new Date().getHours() < 21 ? 'HOJE' : 'AMANHA'));
+  const [periodo, setPeriodo] = useState<PeriodoId | null>(null);
+  const janelaHorario = periodo ? montarJanela(dia, periodo) : '';
+
+  const escolherDia = (novoDia: Dia) => {
+    setDia(novoDia);
+    const atual = PERIODOS.find(p => p.id === periodo);
+    if (atual && !periodoDisponivel(novoDia, atual.fim)) setPeriodo(null);
+  };
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -31,7 +67,7 @@ export default function CartScreen() {
     if (items.length === 0) return;
 
     if (!unidadeEntrega || !janelaHorario) {
-      setError('Preencha a unidade de entrega e a janela de horário');
+      setError('Preencha a unidade de entrega e escolha a janela de horário');
       return;
     }
 
@@ -93,11 +129,7 @@ export default function CartScreen() {
 
   const renderItem = ({ item }: { item: { produto: Produto; quantidade: number } }) => (
     <View style={styles.cartItem}>
-      <Image
-        source={{ uri: 'https://via.placeholder.com/100x100/E6F4FE/1E3A5F?text=Produto' }}
-        style={styles.itemImage}
-        resizeMode="cover"
-      />
+      <ProductImage url={item.produto.imagemUrl} style={styles.itemImage} iconSize={24} />
       <View style={styles.itemInfo} >
         <Text style={styles.itemNome} numberOfLines={2}>{item.produto.nome}</Text>
         <Text style={styles.itemPreco}>{formatBRL(item.produto.preco)} cada</Text>
@@ -189,13 +221,40 @@ export default function CartScreen() {
             ))}
           </View>
 
-          <Input
-            label="Janela de Horário"
-            placeholder="Ex: 18h-20h, amanhã pela manhã..."
-            value={janelaHorario}
-            onChangeText={setJanelaHorario}
-            style={styles.input}
-          />
+          <Text style={styles.sectionLabel}>Janela de Horário</Text>
+          <View style={styles.tipoEntregaOptions}>
+            {(['HOJE', 'AMANHA'] as const).map((opcao) => (
+              <TouchableOpacity
+                key={opcao}
+                style={[styles.tipoOption, dia === opcao && styles.tipoOptionSelected]}
+                onPress={() => escolherDia(opcao)}
+                accessibilityState={{ selected: dia === opcao }}
+              >
+                <Text style={[styles.tipoOptionText, dia === opcao && styles.tipoOptionTextSelected]}>
+                  {opcao === 'HOJE' ? 'Hoje' : 'Amanhã'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={[styles.tipoEntregaOptions, styles.periodos]}>
+            {PERIODOS.map((p) => {
+              const disponivel = periodoDisponivel(dia, p.fim);
+              const selecionado = periodo === p.id;
+              return (
+                <TouchableOpacity
+                  key={p.id}
+                  style={[styles.tipoOption, selecionado && styles.tipoOptionSelected, !disponivel && styles.periodoIndisponivel]}
+                  onPress={() => setPeriodo(p.id)}
+                  disabled={!disponivel}
+                  accessibilityState={{ selected: selecionado, disabled: !disponivel }}
+                >
+                  <Text style={[styles.tipoOptionText, selecionado && styles.tipoOptionTextSelected]}>{p.nome}</Text>
+                  <Text style={[styles.periodoFaixa, selecionado && styles.tipoOptionTextSelected]}>{p.faixa}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          {janelaHorario ? <Text style={styles.janelaEscolhida}>{janelaHorario}</Text> : null}
         </Card>
 
         <Card style={styles.summaryCard}>
@@ -357,6 +416,23 @@ const styles = StyleSheet.create({
   tipoEntregaOptions: {
     flexDirection: 'row',
     gap: 8,
+  },
+  periodos: {
+    marginTop: 8,
+  },
+  periodoIndisponivel: {
+    opacity: 0.4,
+  },
+  periodoFaixa: {
+    fontSize: 11,
+    color: '#6C7A8A',
+    marginTop: 2,
+  },
+  janelaEscolhida: {
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1E3A5F',
   },
   tipoOption: {
     flex: 1,

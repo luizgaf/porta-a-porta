@@ -1,18 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
-import { Card, Button, Avatar, Input } from '../../components/ui';
+import { Card, Button, Avatar, Input, ProductImage } from '../../components/ui';
 import { STATUS_LABELS } from '../../constants';
 import { Produto } from '../../types';
+import { escolherFoto } from '../../utils/foto';
 
 export default function ProductDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { usuario, isVendedor, isSindico } = useAuth();
-  const { getProduto, updateProdutoStatus, deleteProduto, createDenuncia } = useApi();
+  const { getProduto, updateProdutoStatus, deleteProduto, createDenuncia, uploadImagemProduto } = useApi();
 
   const [produto, setProduto] = useState<Produto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -20,6 +21,7 @@ export default function ProductDetailScreen() {
   const [showDenunciaModal, setShowDenunciaModal] = useState(false);
   const [denunciaMotivo, setDenunciaMotivo] = useState('');
   const [denunciaLoading, setDenunciaLoading] = useState(false);
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
 
   useEffect(() => {
     if (id) carregarProduto();
@@ -94,6 +96,21 @@ export default function ProductDetailScreen() {
     );
   };
 
+  const handleTrocarFoto = async () => {
+    if (!produto) return;
+    const foto = await escolherFoto();
+    if (!foto) return;
+    setEnviandoFoto(true);
+    try {
+      const resposta = await uploadImagemProduto(produto.id, foto.uri, foto.tipo);
+      setProduto({ ...produto, imagemUrl: resposta.produto.imagemUrl });
+    } catch (error: any) {
+      Alert.alert('Erro', error.message || 'Não foi possível enviar a foto');
+    } finally {
+      setEnviandoFoto(false);
+    }
+  };
+
   const handleDenuncia = async () => {
     if (!denunciaMotivo.trim() || denunciaMotivo.length < 10) {
       Alert.alert('Erro', 'O motivo deve ter pelo menos 10 caracteres');
@@ -146,12 +163,25 @@ export default function ProductDetailScreen() {
     >
       {/* Product Image */}
       <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: 'https://via.placeholder.com/400x300/E6F4FE/1E3A5F?text=' + encodeURIComponent(produto.nome) }}
-          style={styles.image}
-          resizeMode="cover"
-        />
+        <ProductImage url={produto.imagemUrl} style={styles.image} iconSize={56} />
         {renderStatusBadge(produto.status)}
+        {canManage && (
+          <TouchableOpacity
+            style={styles.trocarFoto}
+            onPress={handleTrocarFoto}
+            disabled={enviandoFoto}
+            accessibilityLabel={produto.imagemUrl ? 'Trocar foto' : 'Adicionar foto'}
+          >
+            {enviandoFoto ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="camera-outline" size={16} color="#FFFFFF" />
+                <Text style={styles.trocarFotoTexto}>{produto.imagemUrl ? 'Trocar foto' : 'Adicionar foto'}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.content}>
@@ -308,6 +338,23 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
+  },
+  trocarFoto: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(27, 42, 58, 0.85)',
+  },
+  trocarFotoTexto: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
   },
   statusBadge: {
     position: 'absolute',

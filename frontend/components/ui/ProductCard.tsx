@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from './Card';
 import { DoorTag } from './DoorTag';
+import { ProductImage } from './ProductImage';
 import { colors, spacing, borderRadius, typography, shadows } from '../../constants/design';
 import { Produto } from '../../types';
 
@@ -33,17 +34,7 @@ export const ProductCard = React.forwardRef<React.ElementRef<typeof TouchableOpa
           <View style={styles.content}>
             {/* Left: Image */}
             <View style={styles.imageWrapper}>
-              {product.imagem_url ? (
-                <Image
-                  source={{ uri: product.imagem_url }}
-                  style={styles.image}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View style={[styles.imagePlaceholder, { backgroundColor: colors.morningFog }]}>
-                  <Ionicons name="bag-outline" size={32} color={colors.mutedSlate} />
-                </View>
-              )}
+              <ProductImage url={product.imagemUrl} style={styles.image} />
             </View>
 
             {/* Right: Info */}

@@ -4,13 +4,14 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
-import { Button, Input, Card } from '../../components/ui';
+import { Button, Input, Card, ProductImage } from '../../components/ui';
+import { escolherFoto, FotoEscolhida } from '../../utils/foto';
 import { CATEGORIAS } from '../../constants';
 
 export default function NewProductScreen() {
   const router = useRouter();
   const { isVendedor } = useAuth();
-  const { createProduto } = useApi();
+  const { createProduto, uploadImagemProduto } = useApi();
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -20,6 +21,7 @@ export default function NewProductScreen() {
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [creating, setCreating] = useState(false);
+  const [foto, setFoto] = useState<FotoEscolhida | null>(null);
 
   if (!isVendedor) {
     return (
@@ -46,13 +48,24 @@ export default function NewProductScreen() {
 
     setCreating(true);
     try {
-      await createProduto({
+      const { produto } = await createProduto({
         nome: formData.nome.trim(),
         descricao: formData.descricao.trim() || undefined,
         preco: parseFloat(formData.preco),
         categoria: formData.categoria,
       });
-      Alert.alert('Sucesso!', 'Produto criado com sucesso', [
+
+      // A foto é enviada depois que o produto existe; se falhar, o produto continua criado
+      let avisoFoto = '';
+      if (foto) {
+        try {
+          await uploadImagemProduto(produto.id, foto.uri, foto.tipo);
+        } catch (erroFoto: any) {
+          avisoFoto = `\n\nA foto não foi enviada: ${erroFoto.message}. Você pode adicioná-la na página do produto.`;
+        }
+      }
+
+      Alert.alert('Sucesso!', `Produto criado com sucesso${avisoFoto}`, [
         { text: 'OK', onPress: () => router.replace('/(tabs)/seller') },
       ]);
     } catch (error: any) {
@@ -82,6 +95,31 @@ export default function NewProductScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Card style={styles.formCard}>
+          <Text style={styles.sectionLabel}>Foto do produto</Text>
+          <TouchableOpacity
+            style={styles.fotoArea}
+            onPress={async () => {
+              const escolhida = await escolherFoto();
+              if (escolhida) setFoto(escolhida);
+            }}
+            activeOpacity={0.8}
+            accessibilityLabel={foto ? 'Trocar foto do produto' : 'Adicionar foto do produto'}
+          >
+            {foto ? (
+              <ProductImage url={foto.uri} style={styles.fotoPreview} />
+            ) : (
+              <View style={styles.fotoVazia}>
+                <Ionicons name="camera-outline" size={32} color="#6C7A8A" />
+                <Text style={styles.fotoTexto}>Adicionar foto (JPEG, PNG ou WebP, até 5 MB)</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          {foto && (
+            <TouchableOpacity onPress={() => setFoto(null)} style={styles.fotoRemover}>
+              <Text style={styles.fotoRemoverTexto}>Remover foto</Text>
+            </TouchableOpacity>
+          )}
+
           <Input
             label="Nome do Produto *"
             placeholder="Ex: Pão de Queijo Caseiro"
@@ -201,6 +239,41 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 40,
     gap: 16,
+  },
+  fotoArea: {
+    height: 180,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#D0D8DE',
+    backgroundColor: '#F5F8FA',
+    marginBottom: 8,
+  },
+  fotoPreview: {
+    width: '100%',
+    height: '100%',
+  },
+  fotoVazia: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  fotoTexto: {
+    fontSize: 13,
+    color: '#6C7A8A',
+    textAlign: 'center',
+  },
+  fotoRemover: {
+    alignSelf: 'flex-end',
+    marginBottom: 12,
+  },
+  fotoRemoverTexto: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#DC3545',
   },
   formCard: {
     borderWidth: 1,
