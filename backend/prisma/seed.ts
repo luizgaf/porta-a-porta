@@ -1,5 +1,42 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
+import { pastaDeImagens, extensaoPelaAssinatura, TAMANHO_MAXIMO_IMAGEM, PREFIXO_URL_IMAGENS } from '../src/services/imagens';
+
+// Fotos padrão dos produtos de teste: prisma/seed-images/<nome-do-produto>.jpg (ver o README da pasta)
+const PASTA_FOTOS_SEED = path.join(__dirname, 'seed-images');
+
+// "Pão de Queijo" -> "pao-de-queijo"
+const nomeDoArquivo = (nomeProduto: string) =>
+  nomeProduto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+// Copia a foto do produto para a pasta de uploads e devolve a URL, ou null se não houver foto válida
+const copiarFotoSeed = (nomeProduto: string): string | null => {
+  const base = nomeDoArquivo(nomeProduto);
+  const arquivo = ['jpg', 'jpeg', 'png', 'webp']
+    .map((ext) => path.join(PASTA_FOTOS_SEED, `${base}.${ext}`))
+    .find((caminho) => fs.existsSync(caminho));
+  if (!arquivo) return null;
+
+  const conteudo = fs.readFileSync(arquivo);
+  const extensao = extensaoPelaAssinatura(conteudo);
+  if (!extensao || conteudo.length > TAMANHO_MAXIMO_IMAGEM) {
+    console.warn(`⚠️  Foto ignorada (precisa ser JPEG, PNG ou WebP de até 5 MB): ${path.basename(arquivo)}`);
+    return null;
+  }
+
+  // Nome fixo, para não acumular cópias quando o seed roda de novo
+  const destino = `seed-${base}.${extensao}`;
+  fs.mkdirSync(pastaDeImagens(), { recursive: true });
+  fs.writeFileSync(path.join(pastaDeImagens(), destino), conteudo);
+  return `${PREFIXO_URL_IMAGENS}/${destino}`;
+};
 
 const senhaHash = async (senha: string) => bcrypt.hash(senha, 10);
 
@@ -251,9 +288,18 @@ async function main() {
     where: { email: 'vendedor1@pap.com' },
   });
 
+  let fotos = 0;
   for (const produto of produtos) {
     // O mesmo id no where e no create, para o seed poder ser executado mais de uma vez
     const id = `seed-prod-${produto.nome.toLowerCase().replace(/\s+/g, '-')}`;
+
+    // Usa a foto padrão, sem substituir uma foto que o vendedor já tenha enviado pelo app
+    const fotoSeed = copiarFotoSeed(produto.nome);
+    const atual = await prisma.produto.findUnique({ where: { id }, select: { imagemUrl: true } });
+    const podeTrocarFoto = !atual?.imagemUrl || atual.imagemUrl.startsWith(`${PREFIXO_URL_IMAGENS}/seed-`);
+    const imagemUrl = fotoSeed && podeTrocarFoto ? fotoSeed : undefined;
+    if (imagemUrl) fotos++;
+
     await prisma.produto.upsert({
       where: { id },
       update: {
@@ -262,9 +308,11 @@ async function main() {
         preco: produto.preco,
         categoria: produto.categoria,
         status: produto.status,
+        ...(imagemUrl ? { imagemUrl } : {}),
       },
       create: {
         id,
+        imagemUrl,
         nome: produto.nome,
         descricao: produto.descricao,
         preco: produto.preco,
@@ -282,7 +330,7 @@ async function main() {
   console.log('   - 1 comprador criado (comprador1@pap.com / comprador123)');
   console.log('   - 1 vendedor criado (vendedor1@pap.com / vendedor123)');
   console.log(`   - Síndico 1: sindico1@pap.com / sindico123`);
-  console.log(`   - ${produtos.length} produtos criados`);
+  console.log(`   - ${produtos.length} produtos criados (${fotos} com foto padrão)`);
 }
 
 main()
