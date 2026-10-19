@@ -11,7 +11,12 @@ import type {
   RegisterData,
   Condominio,
   Notificacao,
+  MeuCondominio,
+  PedidoVinculo,
+  DashboardVendas,
+  Usuario,
 } from '../types';
+import { useCartStore } from '../store/cartStore';
 
 export const useApi = () => {
   const { logout, login: setAuth } = useAuth();
@@ -61,6 +66,43 @@ export const useApi = () => {
   // Condomínios
   const getCondominios = useCallback(async () => {
     return api.get<{ condominios: Condominio[] }>('/condominios');
+  }, []);
+
+  // Condomínios do usuário (origem e vínculos) e troca do condomínio ativo
+  const getMeusCondominios = useCallback(async () => {
+    return api.get<{ condominioAtivoId: string; condominios: MeuCondominio[] }>('/vinculos');
+  }, []);
+
+  const pedirParticipacao = useCallback(async (data: { condominioId: string; unidade: string; querVender: boolean }) => {
+    return api.post<{ message: string }>('/vinculos', data);
+  }, []);
+
+  // A API devolve um token novo com o outro condomínio ativo; o carrinho é esvaziado,
+  // porque os produtos dele são do condomínio anterior
+  const trocarCondominio = useCallback(async (condominioId: string) => {
+    const response = await api.post<{ token: string; usuario: Usuario }>('/vinculos/trocar', { condominioId });
+    await api.setToken(response.token);
+    await api.setUser(response.usuario);
+    await api.setCondominioId(response.usuario.condominioId);
+    useCartStore.getState().clearCart();
+    await setAuth(response.usuario, response.token);
+    return response;
+  }, [setAuth]);
+
+  const getPedidosParticipacao = useCallback(async () => {
+    return api.get<{ pedidos: PedidoVinculo[] }>('/vinculos/pendentes');
+  }, []);
+
+  const decidirParticipacao = useCallback(
+    async (id: string, data: { aprovar: boolean; tipo?: 'COMPRADOR' | 'VENDEDOR'; justificativa?: string }) => {
+      return api.patch<{ message: string }>(`/vinculos/${id}`, data);
+    },
+    []
+  );
+
+  // Dashboard de vendas do vendedor
+  const getDashboardVendas = useCallback(async () => {
+    return api.get<DashboardVendas>('/pedidos/dashboard');
   }, []);
 
   // Produtos
@@ -200,6 +242,12 @@ export const useApi = () => {
     updateUsuario,
 
     getCondominios,
+    getMeusCondominios,
+    pedirParticipacao,
+    trocarCondominio,
+    getPedidosParticipacao,
+    decidirParticipacao,
+    getDashboardVendas,
 
     // Produtos
     getProdutos,

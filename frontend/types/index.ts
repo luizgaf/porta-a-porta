@@ -16,6 +16,56 @@ export interface Usuario {
   unidade: string;
   tipo: TipoUsuario;
   criadoEm: string;
+  // condominioId é o condomínio ativo; o de origem é o do cadastro
+  condominioOrigemId?: string;
+  condominioNome?: string;
+}
+
+// Condomínios do usuário: o de origem e os vínculos com outros condomínios
+export type StatusVinculo = 'PENDENTE' | 'APROVADO' | 'RECUSADO';
+
+export interface MeuCondominio {
+  id?: string;
+  condominio: { id: string; nome: string; endereco: string };
+  unidade: string;
+  tipo: TipoUsuario;
+  status: StatusVinculo;
+  origem: boolean;
+}
+
+// Pedido de participação visto pelo síndico
+export interface PedidoVinculo {
+  id: string;
+  nome: string;
+  condominioOrigem: string;
+  unidade: string;
+  tipoSolicitado: TipoUsuario;
+  criadoEm: string;
+}
+
+// Resumo de vendas do vendedor no condomínio ativo
+export interface DashboardVendas {
+  totais: {
+    vendido: number;
+    emAndamento: number;
+    pedidos: number;
+    ticketMedio: number;
+    itensVendidos: number;
+    produtosAtivos: number;
+    limiteProdutosAtivos: number;
+  };
+  porStatus: { status: string; quantidade: number }[];
+  maisVendidos: { produtoId: string; nome: string; quantidade: number; valor: number }[];
+  ultimosMeses: { mes: string; valor: number; pedidos: number }[];
+  ultimosPedidos: {
+    id: string;
+    status: string;
+    criadoEm: string;
+    unidadeEntrega: string;
+    janelaHorario: string;
+    valor: number;
+    itens: number;
+  }[];
 }
 
 export interface Condominio {
@@ -116,13 +166,16 @@ export type TipoNotificacao =
   | 'PEDIDO_CANCELADO'
   | 'ANUNCIO_QUARENTENA'
   | 'ANUNCIO_RESTAURADO'
-  | 'DENUNCIA_PARA_ANALISE';
+  | 'DENUNCIA_PARA_ANALISE'
+  | 'PEDIDO_VINCULO'
+  | 'VINCULO_APROVADO'
+  | 'VINCULO_RECUSADO';
 
 export interface Notificacao {
   id: string;
   tipo: TipoNotificacao;
   mensagem: string;
-  entidadeTipo?: 'PEDIDO' | 'PRODUTO' | null;
+  entidadeTipo?: 'PEDIDO' | 'PRODUTO' | 'VINCULO' | null;
   entidadeId?: string | null;
   lida: boolean;
   criadoEm: string;

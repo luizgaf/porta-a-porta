@@ -12,6 +12,9 @@ import { colors } from '../constants/design';
 
 const ICONES: Record<TipoNotificacao, keyof typeof Ionicons.glyphMap> = {
   NOVO_PEDIDO: 'bag-handle-outline',
+  PEDIDO_VINCULO: 'person-add-outline',
+  VINCULO_APROVADO: 'business-outline',
+  VINCULO_RECUSADO: 'business-outline',
   STATUS_PEDIDO: 'cube-outline',
   PEDIDO_CANCELADO: 'close-circle-outline',
   ANUNCIO_QUARENTENA: 'alert-circle-outline',
@@ -68,6 +71,10 @@ export default function NotificationsScreen() {
       router.push(`/order/${aviso.entidadeId}`);
     } else if (aviso.tipo === 'DENUNCIA_PARA_ANALISE' && isSindico) {
       router.push('/(tabs)/moderator');
+    } else if (aviso.tipo === 'PEDIDO_VINCULO' && isSindico) {
+      router.push({ pathname: '/(tabs)/moderator', params: { aba: 'MORADORES' } });
+    } else if (aviso.tipo === 'VINCULO_APROVADO' || aviso.tipo === 'VINCULO_RECUSADO') {
+      router.push('/condominios');
     } else if (aviso.tipo === 'ANUNCIO_QUARENTENA') {
       // Anúncio suspenso não abre para o vendedor; o painel mostra o status
       router.push('/(tabs)/seller');

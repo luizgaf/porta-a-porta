@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Alert, ScrollView, Modal } from 'react-native';
-import { Link, useRouter } from 'expo-router';
+import { Link, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
@@ -8,6 +8,10 @@ import { Card, Button, Input } from '../../components/ui';
 import { STATUS_LABELS } from '../../constants';
 import { Avaliacao, Denuncia, Produto } from '../../types';
 import { aoChegarPertoDoFim } from '../../utils/rolagem';
+import { PedidosParticipacao } from '../../components/moderacao/PedidosParticipacao';
+
+type Aba = 'DENUNCIAS' | 'AVALIACOES' | 'MORADORES';
+const NOME_ABA: Record<Aba, string> = { DENUNCIAS: 'Denúncias', AVALIACOES: 'Avaliações', MORADORES: 'Moradores' };
 
 export default function ModeratorScreen() {
   const router = useRouter();
@@ -28,7 +32,11 @@ export default function ModeratorScreen() {
   const [processando, setProcessando] = useState(false);
 
   // Aba de avaliações: o síndico remove avaliações abusivas, com justificativa (RN02)
-  const [aba, setAba] = useState<'DENUNCIAS' | 'AVALIACOES'>('DENUNCIAS');
+  // Um aviso de pedido de participação abre direto na aba de moradores
+  const params = useLocalSearchParams<{ aba?: string }>();
+  const [aba, setAba] = useState<Aba>(params.aba === 'MORADORES' ? 'MORADORES' : 'DENUNCIAS');
+  const [atualizarMoradores, setAtualizarMoradores] = useState(0);
+  const [pedidosMoradores, setPedidosMoradores] = useState<number | null>(null);
   const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([]);
   const [loadingAvaliacoes, setLoadingAvaliacoes] = useState(false);
   const [avaliacaoParaRemover, setAvaliacaoParaRemover] = useState<Avaliacao | null>(null);
@@ -48,7 +56,7 @@ export default function ModeratorScreen() {
     }
   }, [getAvaliacoes]);
 
-  const trocarAba = (novaAba: 'DENUNCIAS' | 'AVALIACOES') => {
+  const trocarAba = (novaAba: Aba) => {
     setAba(novaAba);
     if (novaAba === 'AVALIACOES' && avaliacoes.length === 0) carregarAvaliacoes();
   };
@@ -106,7 +114,10 @@ export default function ModeratorScreen() {
   const handleRefresh = () => {
     setRefreshing(true);
     if (aba === 'AVALIACOES') carregarAvaliacoes();
-    else carregarDenuncias(1, true);
+    else if (aba === 'MORADORES') {
+      setAtualizarMoradores(n => n + 1);
+      setRefreshing(false);
+    } else carregarDenuncias(1, true);
   };
 
   const handleLoadMore = () => {
@@ -273,12 +284,14 @@ export default function ModeratorScreen() {
         <Text style={styles.headerSubtitle}>
           {aba === 'DENUNCIAS'
             ? `${denuncias.length} denúncia(s) no condomínio`
-            : `${avaliacoes.filter(a => !a.removidaPor).length} avaliação(ões) visível(is) no condomínio`}
+            : aba === 'AVALIACOES'
+              ? `${avaliacoes.filter(a => !a.removidaPor).length} avaliação(ões) visível(is) no condomínio`
+              : `${pedidosMoradores ?? 0} pedido(s) para participar do condomínio`}
         </Text>
       </View>
 
       <View style={styles.abas}>
-        {(['DENUNCIAS', 'AVALIACOES'] as const).map(opcao => (
+        {(['DENUNCIAS', 'AVALIACOES', 'MORADORES'] as const).map(opcao => (
           <TouchableOpacity
             key={opcao}
             style={[styles.aba, aba === opcao && styles.abaAtiva]}
@@ -286,13 +299,16 @@ export default function ModeratorScreen() {
             accessibilityState={{ selected: aba === opcao }}
           >
             <Text style={[styles.abaTexto, aba === opcao && styles.abaTextoAtivo]}>
-              {opcao === 'DENUNCIAS' ? 'Denúncias' : 'Avaliações'}
+              {NOME_ABA[opcao]}
+              {opcao === 'MORADORES' && pedidosMoradores ? ` (${pedidosMoradores})` : ''}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {aba === 'AVALIACOES' ? (
+      {aba === 'MORADORES' ? (
+        <PedidosParticipacao atualizar={atualizarMoradores} onContagem={setPedidosMoradores} />
+      ) : aba === 'AVALIACOES' ? (
         loadingAvaliacoes && avaliacoes.length === 0 ? (
           <ActivityIndicator size="large" color="#1E3A5F" style={styles.loadMoreIndicator} />
         ) : avaliacoes.length === 0 ? (
