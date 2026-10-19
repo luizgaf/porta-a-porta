@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { asyncHandler, AppError } from '../middleware/errorHandler';
 import { authMiddleware, AuthRequest, requireRole } from '../middleware/auth';
 import { notificar, formatarValor, STATUS_PEDIDO_TEXTO, NovaNotificacao } from '../services/notificacoes';
+import { unidadesNoCondominio } from '../services/unidades';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -169,6 +170,8 @@ router.get('/', authMiddleware, asyncHandler(async (req: AuthRequest, res: Respo
     prisma.pedido.count({ where }),
   ]);
 
+  await unidadesNoCondominio(prisma, req.user!.condominioId, pedidos.map((p) => p.comprador));
+
   res.json({
     pedidos: pedidos.map((p: { compradorId: string; avaliacao?: unknown }) => ocultarAvaliacaoDeTerceiros(p, req.user!.id)),
     paginacao: {
@@ -177,6 +180,92 @@ router.get('/', authMiddleware, asyncHandler(async (req: AuthRequest, res: Respo
       total,
       totalPaginas: Math.ceil(total / limite),
     },
+  });
+}));
+
+// GET /api/pedidos/dashboard - Resumo das vendas do vendedor no condomínio ativo.
+// Um pedido pode ter produtos de mais de um vendedor, então os valores somam só os itens dele.
+const EM_ANDAMENTO = ['PENDENTE', 'CONFIRMADO', 'EM_PREPARO', 'PRONTO_ENTREGA'];
+const ORDEM_STATUS = [...EM_ANDAMENTO, 'ENTREGUE', 'CANCELADO'];
+
+router.get('/dashboard', authMiddleware, requireRole('VENDEDOR'), asyncHandler(async (req: AuthRequest, res: Response) => {
+  const condominioId = req.user!.condominioId;
+  const vendedorId = req.user!.id;
+
+  const [itens, produtosAtivos] = await Promise.all([
+    prisma.itemPedido.findMany({
+      where: { produto: { vendedorId }, pedido: { condominioId } },
+      select: {
+        quantidade: true,
+        precoUnitario: true,
+        produto: { select: { id: true, nome: true } },
+        pedido: { select: { id: true, status: true, criadoEm: true, unidadeEntrega: true, janelaHorario: true } },
+      },
+    }),
+    prisma.produto.count({ where: { vendedorId, condominioId, status: 'ATIVO' } }),
+  ]);
+
+  type Resumo = { id: string; status: string; criadoEm: Date; unidadeEntrega: string; janelaHorario: string; valor: number; itens: number };
+  const pedidos = new Map<string, Resumo>();
+  const produtos = new Map<string, { produtoId: string; nome: string; quantidade: number; valor: number }>();
+
+  for (const item of itens ?? []) {
+    const subtotal = Number(item.precoUnitario) * item.quantidade;
+    const p = item.pedido;
+    const resumo = pedidos.get(p.id) ?? { ...p, valor: 0, itens: 0 };
+    resumo.valor += subtotal;
+    resumo.itens += item.quantidade;
+    pedidos.set(p.id, resumo);
+
+    if (p.status !== 'CANCELADO') {
+      const prod = produtos.get(item.produto.id) ?? { produtoId: item.produto.id, nome: item.produto.nome, quantidade: 0, valor: 0 };
+      prod.quantidade += item.quantidade;
+      prod.valor += subtotal;
+      produtos.set(item.produto.id, prod);
+    }
+  }
+
+  const lista = [...pedidos.values()];
+  const soma = (filtro: (p: Resumo) => boolean) => lista.filter(filtro).reduce((t, p) => t + p.valor, 0);
+  const entregues = lista.filter((p) => p.status === 'ENTREGUE');
+  const arred = (v: number) => Math.round(v * 100) / 100;
+
+  // Vendas entregues nos últimos 6 meses, incluindo o atual
+  const agora = new Date();
+  const meses = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(agora.getFullYear(), agora.getMonth() - 5 + i, 1);
+    return { mes: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, valor: 0, pedidos: 0 };
+  });
+  for (const p of entregues) {
+    const d = new Date(p.criadoEm);
+    const chave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const mes = meses.find((m) => m.mes === chave);
+    if (mes) {
+      mes.valor += p.valor;
+      mes.pedidos += 1;
+    }
+  }
+
+  res.json({
+    totais: {
+      vendido: arred(soma((p) => p.status === 'ENTREGUE')),
+      emAndamento: arred(soma((p) => EM_ANDAMENTO.includes(p.status))),
+      pedidos: lista.filter((p) => p.status !== 'CANCELADO').length,
+      ticketMedio: entregues.length ? arred(soma((p) => p.status === 'ENTREGUE') / entregues.length) : 0,
+      itensVendidos: entregues.reduce((t, p) => t + p.itens, 0),
+      produtosAtivos,
+      limiteProdutosAtivos: 15,
+    },
+    porStatus: ORDEM_STATUS.map((status) => ({ status, quantidade: lista.filter((p) => p.status === status).length })),
+    maisVendidos: [...produtos.values()]
+      .sort((a, b) => b.quantidade - a.quantidade || b.valor - a.valor)
+      .slice(0, 5)
+      .map((p) => ({ ...p, valor: arred(p.valor) })),
+    ultimosMeses: meses.map((m) => ({ ...m, valor: arred(m.valor) })),
+    ultimosPedidos: lista
+      .sort((a, b) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime())
+      .slice(0, 5)
+      .map((p) => ({ ...p, valor: arred(p.valor) })),
   });
 }));
 
@@ -212,6 +301,8 @@ router.get('/:id', authMiddleware, asyncHandler(async (req: AuthRequest, res: Re
   if (!pedido) {
     throw new AppError(404, 'Pedido não encontrado', 'PEDIDO_NOT_FOUND');
   }
+
+  await unidadesNoCondominio(prisma, req.user!.condominioId, [pedido.comprador]);
 
   res.json({ pedido: ocultarAvaliacaoDeTerceiros(pedido, req.user!.id) });
 }));

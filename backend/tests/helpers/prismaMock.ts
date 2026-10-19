@@ -22,6 +22,7 @@ export const prismaMock = {
   avaliacao: criarModelo(),
   logAuditoria: criarModelo(),
   notificacao: criarModelo(),
+  vinculo: criarModelo(),
   $transaction: jest.fn(),
   $connect: jest.fn(),
   $disconnect: jest.fn(),

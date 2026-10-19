@@ -16,6 +16,7 @@ const usuario = (id: string, nome: string, unidade: string, tipo: Tipo, condomin
   email: `${nome.toLowerCase().replace(/\s+/g, '.')}@teste.com`,
   unidade,
   tipo,
+  condominioOrigemId: condominioId,
 });
 
 export const vendedor = usuario('cccccccc-cccc-4ccc-8ccc-ccccccccccc1', 'Maria Vendedora', 'Apto 202', 'VENDEDOR');
