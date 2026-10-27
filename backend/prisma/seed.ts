@@ -144,6 +144,36 @@ async function main() {
     condominioId: condominios[0].id,
   });
 
+  // Um comprador e um vendedor nos demais condomínios (2 a 10), para demonstrar cada perfil
+  // em qualquer condomínio: compradorN@pap.com / comprador123 e vendedorN@pap.com / vendedor123
+  const nomesCompradores = ['Ana Souza', 'Bruno Lima', 'Carla Dias', 'Diego Rocha', 'Elisa Prado', 'Fábio Nunes', 'Gabriela Reis', 'Hugo Matos', 'Isabela Cruz'];
+  const nomesVendedores = ['Paulo Mendes', 'Renata Alves', 'Sérgio Pinto', 'Tatiana Melo', 'Vítor Campos', 'Yasmin Torres', 'Rafael Costa', 'Lúcia Barros', 'Marcos Vieira'];
+
+  for (let i = 1; i < condominios.length; i++) {
+    const num = i + 1;
+    const nn = num.toString().padStart(2, '0');
+
+    await garantirUsuario({
+      cpf: `2000000${nn}01`,
+      email: `comprador${num}@pap.com`,
+      nome: nomesCompradores[i - 1],
+      senhaHash: compradorSenha,
+      unidade: 'Apto 101',
+      tipo: 'COMPRADOR',
+      condominioId: condominios[i].id,
+    });
+
+    await garantirUsuario({
+      cpf: `3000000${nn}02`,
+      email: `vendedor${num}@pap.com`,
+      nome: nomesVendedores[i - 1],
+      senhaHash: vendedorSenha,
+      unidade: 'Apto 202',
+      tipo: 'VENDEDOR',
+      condominioId: condominios[i].id,
+    });
+  }
+
   // Produtos de teste para o vendedor1 no condomínio 1
   const produtos = [
     {
@@ -330,8 +360,8 @@ async function main() {
   console.log('✅ Seed concluído:');
   console.log(`   - ${condominios.length} condomínios criados`);
   console.log(`   - ${condominios.length} síndicos criados`);
-  console.log('   - 1 comprador criado (comprador1@pap.com / comprador123)');
-  console.log('   - 1 vendedor criado (vendedor1@pap.com / vendedor123)');
+  console.log(`   - ${condominios.length} compradores (comprador1@pap.com … comprador${condominios.length}@pap.com / comprador123)`);
+  console.log(`   - ${condominios.length} vendedores (vendedor1@pap.com … vendedor${condominios.length}@pap.com / vendedor123)`);
   console.log(`   - Síndico 1: sindico1@pap.com / sindico123`);
   console.log(`   - ${produtos.length} produtos criados (${fotos} com foto padrão)`);
 }
