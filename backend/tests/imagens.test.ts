@@ -32,6 +32,25 @@ describe('Foto do produto', () => {
     expect(fs.readFileSync(gravado).equals(PNG)).toBe(true);
   });
 
+  test('TU46 - foto enviada pelo app em multipart/form-data é aceita (sem Blob no aparelho)', async () => {
+    const token = entrarComo(vendedor);
+    prismaMock.produto.findFirst.mockResolvedValue(produtoDoVendedor);
+    prismaMock.produto.update.mockImplementation(async ({ data }) => ({ ...produtoDoVendedor, ...data }));
+
+    // Mesmo formato que o FormData do React Native gera para { uri, name, type }
+    const limite = '----portaaporta123';
+    const corpo = Buffer.concat([
+      Buffer.from(`--${limite}\r\nContent-Disposition: form-data; name="foto"; filename="foto.png"\r\nContent-Type: image/png\r\n\r\n`),
+      PNG,
+      Buffer.from(`\r\n--${limite}--\r\n`),
+    ]);
+    const resposta = await enviarArquivo(`/api/produtos/${PRODUTO_1}/imagem`, token, corpo, `multipart/form-data; boundary=${limite}`);
+
+    expect(resposta.status).toBe(200);
+    const gravado = path.join(process.env.UPLOAD_DIR!, path.basename(resposta.corpo.produto.imagemUrl));
+    expect(fs.readFileSync(gravado).equals(PNG)).toBe(true);
+  });
+
   test('TU28 - arquivo que não é imagem ou maior que 5 MB é recusado (RNF05)', async () => {
     const token = entrarComo(vendedor);
     prismaMock.produto.findFirst.mockResolvedValue(produtoDoVendedor);

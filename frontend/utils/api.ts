@@ -99,18 +99,20 @@ class ApiClient {
     return response.data;
   }
 
-  // Envia a foto do produto. O corpo é o próprio arquivo, lido a partir da URI local
-  // escolhida no aparelho; a API aceita JPEG, PNG ou WebP de até 5 MB (RNF05).
-  async uploadImagemProduto<T>(produtoId: string, uri: string, tipo: string) {
-    const arquivo = await (await fetch(uri)).blob();
+  // Envia uma foto escolhida no aparelho como multipart/form-data. O React Native lê o arquivo
+  // direto da URI local; não usamos fetch(uri).blob(), que falha em parte dos aparelhos Android.
+  // A API aceita JPEG, PNG ou WebP de até 5 MB (RNF05).
+  async enviarFoto<T>(caminho: string, uri: string, tipo: string) {
+    const extensao = tipo === 'image/png' ? 'png' : tipo === 'image/webp' ? 'webp' : 'jpg';
+    const formulario = new FormData();
+    formulario.append('foto', { uri, name: `foto.${extensao}`, type: tipo } as unknown as Blob);
+
     const token = await AsyncStorage.getItem(TOKEN_KEY);
-    const resposta = await fetch(`${API_BASE_URL}/produtos/${produtoId}/imagem`, {
+    // Sem Content-Type manual: o fetch monta o cabeçalho com o boundary do multipart
+    const resposta = await fetch(`${API_BASE_URL}${caminho}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': tipo,
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: arquivo,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formulario,
     });
     const corpo = await resposta.json().catch(() => ({}));
     if (!resposta.ok) {
@@ -120,6 +122,10 @@ class ApiClient {
       throw err;
     }
     return corpo as T;
+  }
+
+  async uploadImagemProduto<T>(produtoId: string, uri: string, tipo: string) {
+    return this.enviarFoto<T>(`/produtos/${produtoId}/imagem`, uri, tipo);
   }
 
   // Setar token manualmente (após login)
