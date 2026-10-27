@@ -8,10 +8,10 @@ import { Card, Button, Input, AvisoQuarentena } from '../../components/ui';
 import { STATUS_LABELS } from '../../constants';
 import { Avaliacao, Denuncia, Produto } from '../../types';
 import { aoChegarPertoDoFim } from '../../utils/rolagem';
-import { PedidosParticipacao } from '../../components/moderacao/PedidosParticipacao';
+import { PainelUsuarios } from '../../components/moderacao/PainelUsuarios';
 
-type Aba = 'DENUNCIAS' | 'AVALIACOES' | 'MORADORES';
-const NOME_ABA: Record<Aba, string> = { DENUNCIAS: 'Denúncias', AVALIACOES: 'Avaliações', MORADORES: 'Moradores' };
+type Aba = 'DENUNCIAS' | 'AVALIACOES' | 'USUARIOS';
+const NOME_ABA: Record<Aba, string> = { DENUNCIAS: 'Denúncias', AVALIACOES: 'Avaliações', USUARIOS: 'Usuários' };
 
 export default function ModeratorScreen() {
   const router = useRouter();
@@ -34,9 +34,9 @@ export default function ModeratorScreen() {
   // Aba de avaliações: o síndico remove avaliações abusivas, com justificativa (RN02)
   // Um aviso de pedido de participação abre direto na aba de moradores
   const params = useLocalSearchParams<{ aba?: string }>();
-  const [aba, setAba] = useState<Aba>(params.aba === 'MORADORES' ? 'MORADORES' : 'DENUNCIAS');
-  const [atualizarMoradores, setAtualizarMoradores] = useState(0);
-  const [pedidosMoradores, setPedidosMoradores] = useState<number | null>(null);
+  // Aviso de pedido de participação abre direto na aba de usuários (que inclui os pedidos)
+  const [aba, setAba] = useState<Aba>(params.aba === 'USUARIOS' || params.aba === 'MORADORES' ? 'USUARIOS' : 'DENUNCIAS');
+  const [atualizarUsuarios, setAtualizarUsuarios] = useState(0);
   const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([]);
   const [loadingAvaliacoes, setLoadingAvaliacoes] = useState(false);
   const [avaliacaoParaRemover, setAvaliacaoParaRemover] = useState<Avaliacao | null>(null);
@@ -114,8 +114,8 @@ export default function ModeratorScreen() {
   const handleRefresh = () => {
     setRefreshing(true);
     if (aba === 'AVALIACOES') carregarAvaliacoes();
-    else if (aba === 'MORADORES') {
-      setAtualizarMoradores(n => n + 1);
+    else if (aba === 'USUARIOS') {
+      setAtualizarUsuarios(n => n + 1);
       setRefreshing(false);
     } else carregarDenuncias(1, true);
   };
@@ -296,12 +296,12 @@ export default function ModeratorScreen() {
             ? `${denuncias.length} denúncia(s) no condomínio`
             : aba === 'AVALIACOES'
               ? `${avaliacoes.filter(a => !a.removidaPor).length} avaliação(ões) visível(is) no condomínio`
-              : `${pedidosMoradores ?? 0} pedido(s) para participar do condomínio`}
+              : 'Moradores e participantes do condomínio'}
         </Text>
       </View>
 
       <View style={styles.abas}>
-        {(['DENUNCIAS', 'AVALIACOES', 'MORADORES'] as const).map(opcao => (
+        {(['DENUNCIAS', 'AVALIACOES', 'USUARIOS'] as const).map(opcao => (
           <TouchableOpacity
             key={opcao}
             style={[styles.aba, aba === opcao && styles.abaAtiva]}
@@ -310,14 +310,13 @@ export default function ModeratorScreen() {
           >
             <Text style={[styles.abaTexto, aba === opcao && styles.abaTextoAtivo]}>
               {NOME_ABA[opcao]}
-              {opcao === 'MORADORES' && pedidosMoradores ? ` (${pedidosMoradores})` : ''}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {aba === 'MORADORES' ? (
-        <PedidosParticipacao atualizar={atualizarMoradores} onContagem={setPedidosMoradores} />
+      {aba === 'USUARIOS' ? (
+        <PainelUsuarios atualizar={atualizarUsuarios} />
       ) : aba === 'AVALIACOES' ? (
         loadingAvaliacoes && avaliacoes.length === 0 ? (
           <ActivityIndicator size="large" color="#1E3A5F" style={styles.loadMoreIndicator} />

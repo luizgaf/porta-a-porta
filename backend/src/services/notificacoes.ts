@@ -12,7 +12,11 @@ export type TipoNotificacao =
   | 'DENUNCIA_PARA_ANALISE'
   | 'PEDIDO_VINCULO'
   | 'VINCULO_APROVADO'
-  | 'VINCULO_RECUSADO';
+  | 'VINCULO_RECUSADO'
+  | 'ADVERTENCIA'
+  | 'SUSPENSAO'
+  | 'BANIMENTO'
+  | 'REATIVACAO';
 
 export interface NovaNotificacao {
   condominioId: string;

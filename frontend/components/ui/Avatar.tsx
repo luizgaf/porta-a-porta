@@ -1,9 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, ViewStyle, ImageStyle } from 'react-native';
 import { colors, spacing, borderRadius, typography } from '../../constants/design';
+import { urlDaImagem } from '../../utils/imagem';
 
 interface AvatarProps {
   source?: { uri: string } | number;
+  // Caminho da foto de perfil guardada no servidor (ex.: /uploads/abc.jpg); sem foto, mostra as iniciais
+  foto?: string | null;
   name?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   style?: ViewStyle | ImageStyle;
@@ -47,7 +50,9 @@ const getColorFromName = (name: string) => {
 };
 
 export const Avatar = React.forwardRef<View, AvatarProps>(
-  ({ source, name, size = 'md', style, ...props }, ref) => {
+  ({ source: fonte, foto, name, size = 'md', style, ...props }, ref) => {
+    const urlFoto = urlDaImagem(foto);
+    const source = fonte ?? (urlFoto ? { uri: urlFoto } : undefined);
     const { width, height, fontSize } = sizes[size];
 
     const containerStyle: ViewStyle = {

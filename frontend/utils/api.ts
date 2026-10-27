@@ -1,7 +1,9 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../constants';
+import { Alert } from 'react-native';
 import { ApiError } from '../types';
+import { useAuthStore } from '../store/authStore';
 
 const TOKEN_KEY = 'token_ki_jwt';
 const USER_KEY = 'token_ki_user';
@@ -40,6 +42,14 @@ class ApiClient {
       (response) => response,
       async (error: AxiosError<ApiError>) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+
+        // Suspenso ou banido pelo síndico: encerra a sessão e mostra o motivo
+        const codigo = error.response?.data?.code;
+        if (error.response?.status === 403 && (codigo === 'USUARIO_SUSPENSO' || codigo === 'USUARIO_BANIDO')) {
+          await this.clearAuth();
+          useAuthStore.getState().clearAuth();
+          Alert.alert(codigo === 'USUARIO_BANIDO' ? 'Acesso bloqueado' : 'Acesso suspenso', error.response?.data?.error || '');
+        }
 
         // Se erro 401 e não tentou renovar token
         if (error.response?.status === 401 && !originalRequest._retry) {

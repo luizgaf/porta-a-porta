@@ -13,6 +13,9 @@ import type {
   Notificacao,
   MeuCondominio,
   PedidoVinculo,
+  PainelUsuarios,
+  Sancao,
+  TipoSancao,
   DashboardVendas,
   Usuario,
 } from '../types';
@@ -99,6 +102,32 @@ export const useApi = () => {
     },
     []
   );
+
+  // Foto de perfil
+  const enviarFotoPerfil = useCallback(async (uri: string, tipo: string) => {
+    return api.enviarFoto<{ fotoUrl: string }>('/usuarios/me/foto', uri, tipo);
+  }, []);
+
+  const removerFotoPerfil = useCallback(async () => {
+    return api.delete<{ fotoUrl: null }>('/usuarios/me/foto');
+  }, []);
+
+  // Painel de usuários do síndico
+  const getPainelUsuarios = useCallback(async () => {
+    return api.get<PainelUsuarios>('/usuarios/painel');
+  }, []);
+
+  const getSancoes = useCallback(async (usuarioId: string) => {
+    return api.get<{ sancoes: Sancao[] }>(`/usuarios/${usuarioId}/sancoes`);
+  }, []);
+
+  const aplicarSancao = useCallback(async (usuarioId: string, data: { tipo: TipoSancao; motivo: string; dias?: number }) => {
+    return api.post<{ message: string }>(`/usuarios/${usuarioId}/sancoes`, data);
+  }, []);
+
+  const reativarUsuario = useCallback(async (usuarioId: string, justificativa?: string) => {
+    return api.post<{ message: string }>(`/usuarios/${usuarioId}/reativar`, { justificativa });
+  }, []);
 
   // Dashboard de vendas do vendedor
   const getDashboardVendas = useCallback(async () => {
@@ -248,6 +277,12 @@ export const useApi = () => {
     getPedidosParticipacao,
     decidirParticipacao,
     getDashboardVendas,
+    enviarFotoPerfil,
+    removerFotoPerfil,
+    getPainelUsuarios,
+    getSancoes,
+    aplicarSancao,
+    reativarUsuario,
 
     // Produtos
     getProdutos,

@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client';
 import { asyncHandler, AppError } from '../middleware/errorHandler';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
 import { gerarToken } from '../services/sessao';
+import { sancaoAtiva, mensagemDeBloqueio, codigoDeBloqueio } from '../services/sancoes';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -109,6 +110,11 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
     throw new AppError(401, 'Credenciais inválidas', 'INVALID_CREDENTIALS');
   }
 
+  const bloqueio = await sancaoAtiva(prisma, usuario.id, usuario.condominioId);
+  if (bloqueio) {
+    throw new AppError(403, mensagemDeBloqueio(bloqueio), codigoDeBloqueio(bloqueio));
+  }
+
   const token = gerarToken(usuario.id, usuario.condominioId, usuario.tipo);
 
   res.json({
@@ -120,6 +126,7 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
       email: usuario.email,
       unidade: usuario.unidade,
       tipo: usuario.tipo,
+      fotoUrl: usuario.fotoUrl,
       condominioOrigemId: usuario.condominioId,
       condominioNome: usuario.condominio?.nome,
     },

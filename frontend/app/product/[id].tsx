@@ -201,7 +201,7 @@ export default function ProductDetailScreen() {
         {/* Seller Info */}
         <Card style={styles.sellerCard}>
           <View style={styles.sellerRow}>
-            <Avatar name={produto.vendedor?.nome || 'Vendedor'} size="md" />
+            <Avatar name={produto.vendedor?.nome || 'Vendedor'} foto={produto.vendedor?.fotoUrl} size="md" />
             <View style={styles.sellerInfo}>
               <Text style={styles.sellerNome}>{produto.vendedor?.nome || 'Vendedor'}</Text>
               <Text style={styles.sellerUnidade}>{produto.vendedor?.unidade || ''}</Text>
