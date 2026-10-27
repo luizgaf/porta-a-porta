@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
-import { Card, Button, Avatar, Input, ProductImage } from '../../components/ui';
+import { Card, Button, Avatar, Input, ProductImage, AvisoQuarentena } from '../../components/ui';
 import { STATUS_LABELS } from '../../constants';
 import { Produto } from '../../types';
 import { escolherFoto } from '../../utils/foto';
@@ -226,13 +226,7 @@ export default function ProductDetailScreen() {
         <View style={styles.actions}>
           {canManage && produto.status === 'QUARENTENA' ? (
             <>
-              <View style={styles.unavailable}>
-                <Ionicons name="shield-outline" size={20} color="#DC3545" />
-                <Text style={styles.unavailableText}>
-                  {produto.quarentena?.porSindico ? 'Suspenso pelo síndico. Motivo: ' : ''}
-                  {produto.quarentena?.motivo || 'Anúncio suspenso após denúncias.'} Só o síndico pode reativá-lo.
-                </Text>
-              </View>
+              <AvisoQuarentena quarentena={produto.quarentena} para="vendedor" />
               <Button title="Excluir" onPress={handleDelete} variant="danger" fullWidth style={styles.actionButton} />
             </>
           ) : canManage && produto.status !== 'EXCLUIDO' ? (
@@ -252,6 +246,8 @@ export default function ProductDetailScreen() {
                 style={styles.actionButton}
               />
             </>
+          ) : produto.status === 'QUARENTENA' && isSindico ? (
+            <AvisoQuarentena quarentena={produto.quarentena} para="sindico" />
           ) : produto.status === 'ATIVO' ? (
             <Button
               title="Adicionar ao Carrinho"

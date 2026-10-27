@@ -88,7 +88,8 @@ export interface Produto {
   atualizadoEm: string;
   imagemUrl?: string | null;
   // Só vem para o síndico e para o vendedor dono, quando o anúncio está em quarentena
-  quarentena?: { motivo: string; porSindico: boolean; data: string | null };
+  // denuncias: motivos escritos por quem denunciou, sem identificação (RN02)
+  quarentena?: { motivo: string; porSindico: boolean; data: string | null; denuncias: string[] };
   media_avaliacoes?: number;
   total_avaliacoes?: number;
   vendedor?: {
@@ -153,6 +154,7 @@ export interface Denuncia {
     id: string;
     nome: string;
     status?: string;
+    totalDenuncias?: number;
   };
   denunciante?: {
     id: string;

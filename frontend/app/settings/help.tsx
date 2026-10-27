@@ -7,26 +7,31 @@ import { Card } from '../../components/ui';
 export default function HelpScreen() {
   const router = useRouter();
 
+  // Respostas conferidas com as regras implementadas na API
   const faqs = [
     {
       q: 'Como faço para me tornar vendedor?',
-      a: 'No cadastro, selecione "Vendedor" como tipo de usuário. Se já tem conta, vá em Perfil > Configurações e solicite alteração de tipo ao síndico.',
+      a: 'No cadastro, escolha o perfil "Vendedor". Quem é vendedor também compra normalmente. Em outro condomínio, você pede para participar marcando "Também quero vender lá", e o síndico de lá decide.',
     },
     {
       q: 'Meu produto sumiu da vitrine. O que aconteceu?',
-      a: 'Produtos com 3 ou mais denúncias entram em quarentena automaticamente. O síndico decide se restaura ou mantém fora. Verifique na aba "Vendedor" o status do seu produto.',
+      a: 'Anúncios com denúncias de 3 moradores diferentes entram em quarentena e somem da vitrine dos outros moradores. Você continua vendo o anúncio na aba "Vender", com o motivo. Só o síndico pode restaurá-lo.',
     },
     {
       q: 'Como funciona a entrega?',
-      a: 'Na finalização do pedido, escolha: Portaria (entregue na portaria), Unidade (entregue na sua porta) ou Combinar (você combina direto com o vendedor pelo chat).',
+      a: 'Na finalização do pedido, escolha Portaria (deixado na portaria), Unidade (entregue na sua porta) ou Combinar (vocês combinam pessoalmente), e o dia e o período da entrega. O pagamento é feito direto entre vizinhos.',
     },
     {
       q: 'Posso cancelar um pedido?',
-      a: 'Sim, compradores podem cancelar pedidos com status "Pendente". Vendedores e síndico podem cancelar em qualquer etapa antes da entrega.',
+      a: 'Sim. Quem comprou e quem vende podem cancelar o pedido em qualquer etapa antes da entrega. Depois de entregue, não é mais possível cancelar.',
     },
     {
       q: 'Como funciona o limite de 15 produtos?',
-      a: 'Cada vendedor pode ter no máximo 15 produtos com status "Ativo" simultaneamente. Pause ou exclua produtos para criar novos.',
+      a: 'Cada vendedor pode ter no máximo 15 produtos ativos ao mesmo tempo em cada condomínio. Pause ou exclua um produto para anunciar outro.',
+    },
+    {
+      q: 'Como vejo os produtos de outro condomínio?',
+      a: 'Toque no nome do condomínio no topo da tela inicial e peça para participar, informando a sua unidade lá. Quando o síndico daquele condomínio aprovar, você troca de condomínio pelo mesmo lugar.',
     },
   ];
 

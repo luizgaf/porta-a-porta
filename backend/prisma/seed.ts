@@ -153,14 +153,17 @@ async function main() {
     const num = i + 1;
     const nn = num.toString().padStart(2, '0');
 
+    // O comprador2 mora no condomínio 1, junto com o comprador1: assim há dois compradores para
+    // demonstrar o mesmo condomínio (pedidos, avaliações e denúncias de pessoas diferentes)
+    const compradorNoCondominio1 = num === 2;
     await garantirUsuario({
       cpf: `2000000${nn}01`,
       email: `comprador${num}@pap.com`,
       nome: nomesCompradores[i - 1],
       senhaHash: compradorSenha,
-      unidade: 'Apto 101',
+      unidade: compradorNoCondominio1 ? 'Apto 102' : 'Apto 101',
       tipo: 'COMPRADOR',
-      condominioId: condominios[i].id,
+      condominioId: compradorNoCondominio1 ? condominios[0].id : condominios[i].id,
     });
 
     await garantirUsuario({
@@ -357,13 +360,62 @@ async function main() {
     });
   }
 
+  // O anúncio que começa em quarentena recebe as 3 denúncias que a justificam (RN02), de três
+  // moradores do condomínio 1. createMany com skipDuplicates não repete denúncias ao rodar de novo.
+  const emQuarentena = produtos.find((p) => p.status === 'QUARENTENA');
+  if (emQuarentena) {
+    const idQuarentena = emQuarentena.idSeed ?? `seed-prod-${emQuarentena.nome.toLowerCase().replace(/\s+/g, '-')}`;
+    const denunciantes = await prisma.usuario.findMany({
+      where: { email: { in: ['comprador1@pap.com', 'comprador2@pap.com', 'sindico1@pap.com'] } },
+      select: { id: true },
+    });
+    const motivos = ['Produto chegou diferente da foto', 'Itens faltando na porção', 'Preço diferente do anunciado'];
+    await prisma.denuncia.createMany({
+      data: denunciantes.map((d, k) => ({ produtoId: idQuarentena, denuncianteId: d.id, motivo: motivos[k] })),
+      skipDuplicates: true,
+    });
+  }
+
+  // Um produto de exemplo para cada vendedor dos condomínios 2 a 10, copiado dos produtos ativos
+  // da Maria Vendedora. A escolha varia por condomínio, mas é fixa, para o seed não criar cópias
+  // novas a cada execução.
+  const ativosVendedor1 = produtos.filter((p) => p.status === 'ATIVO');
+  let copias = 0;
+  for (let i = 1; i < condominios.length; i++) {
+    const num = i + 1;
+    const vendedorN = await prisma.usuario.findUnique({ where: { email: `vendedor${num}@pap.com` }, select: { id: true } });
+    if (!vendedorN) continue;
+
+    const modelo = ativosVendedor1[(num * 7) % ativosVendedor1.length];
+    const id = `seed-prod-v${num}-${nomeDoArquivo(modelo.nome)}`;
+    const fotoSeed = copiarFotoSeed(modelo.nome);
+    const atual = await prisma.produto.findUnique({ where: { id }, select: { imagemUrl: true } });
+    const podeTrocarFoto = !atual?.imagemUrl || atual.imagemUrl.startsWith(`${PREFIXO_URL_IMAGENS}/seed-`);
+    const imagemUrl = fotoSeed && podeTrocarFoto ? fotoSeed : undefined;
+    const dados = {
+      nome: modelo.nome,
+      descricao: modelo.descricao,
+      preco: modelo.preco,
+      categoria: modelo.categoria,
+      status: 'ATIVO' as const,
+    };
+
+    await prisma.produto.upsert({
+      where: { id },
+      update: { ...dados, ...(imagemUrl ? { imagemUrl } : {}) },
+      create: { id, ...dados, imagemUrl, vendedorId: vendedorN.id, condominioId: condominios[i].id },
+    });
+    copias++;
+  }
+
   console.log('✅ Seed concluído:');
   console.log(`   - ${condominios.length} condomínios criados`);
   console.log(`   - ${condominios.length} síndicos criados`);
-  console.log(`   - ${condominios.length} compradores (comprador1@pap.com … comprador${condominios.length}@pap.com / comprador123)`);
+  console.log(`   - ${condominios.length} compradores (comprador1@pap.com … comprador${condominios.length}@pap.com / comprador123; 1 e 2 no condomínio 1)`);
   console.log(`   - ${condominios.length} vendedores (vendedor1@pap.com … vendedor${condominios.length}@pap.com / vendedor123)`);
   console.log(`   - Síndico 1: sindico1@pap.com / sindico123`);
-  console.log(`   - ${produtos.length} produtos criados (${fotos} com foto padrão)`);
+  console.log(`   - ${produtos.length} produtos da Maria Vendedora (${fotos} com foto padrão)`);
+  console.log(`   - ${copias} produtos de exemplo para os vendedores dos condomínios 2 a ${condominios.length}`);
 }
 
 main()

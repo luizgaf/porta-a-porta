@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { asyncHandler, AppError } from '../middleware/errorHandler';
 import { authMiddleware, AuthRequest, requireRole } from '../middleware/auth';
 import { notificar } from '../services/notificacoes';
+import { MOTIVO_AUTOMATICO } from '../services/quarentena';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -135,7 +136,7 @@ router.get('/', authMiddleware, requireRole('SINDICO'), asyncHandler(async (req:
       select: {
         ...denunciaSemIdentificacao,
         produto: {
-          select: { id: true, nome: true, status: true, vendedorId: true },
+          select: { id: true, nome: true, status: true, vendedorId: true, _count: { select: { denuncias: true } } },
         },
       },
       orderBy: { criadoEm: 'desc' },
@@ -152,7 +153,12 @@ router.get('/', authMiddleware, requireRole('SINDICO'), asyncHandler(async (req:
   ]);
 
   res.json({
-    denuncias: denuncias.map(paraModeracao),
+    denuncias: denuncias.map((d) => {
+      const { produto, ...resto } = paraModeracao(d) as { produto?: { _count?: { denuncias: number } } & Record<string, unknown> };
+      if (!produto) return resto;
+      const { _count, ...dadosProduto } = produto;
+      return { ...resto, produto: { ...dadosProduto, totalDenuncias: _count?.denuncias ?? 0 } };
+    }),
     paginacao: {
       pagina,
       limite,
@@ -195,10 +201,6 @@ router.patch('/:produtoId/quarentena', authMiddleware, requireRole('SINDICO'), a
   const { produtoId } = req.params;
   const { acao, justificativa } = updateDenunciaStatusSchema.parse(req.body);
 
-  // O vendedor vê o motivo da quarentena, então o síndico precisa escrevê-lo
-  if (acao === 'QUARENTENA' && (!justificativa || justificativa.length < 5)) {
-    throw new AppError(400, 'Informe o motivo da quarentena (mínimo 5 caracteres); o vendedor vai ler este texto', 'VALIDATION_ERROR');
-  }
 
   const produto = await prisma.produto.findFirst({
     where: { id: produtoId, condominioId: req.user!.condominioId },
@@ -207,6 +209,14 @@ router.patch('/:produtoId/quarentena', authMiddleware, requireRole('SINDICO'), a
   if (!produto) {
     throw new AppError(404, 'Produto não encontrado', 'PRODUTO_NOT_FOUND');
   }
+
+  // Para colocar um anúncio ativo em quarentena, o síndico escreve o motivo (o vendedor vai ler).
+  // Se ele já está em quarentena por denúncias, manter dispensa o motivo: vale o da suspensão automática.
+  const jaEmQuarentena = produto.status === 'QUARENTENA';
+  if (acao === 'QUARENTENA' && !jaEmQuarentena && (!justificativa || justificativa.length < 5)) {
+    throw new AppError(400, 'Informe o motivo da quarentena (mínimo 5 caracteres); o vendedor vai ler este texto', 'VALIDATION_ERROR');
+  }
+  const motivo = justificativa || (acao === 'QUARENTENA' ? MOTIVO_AUTOMATICO : undefined);
 
   let novoStatus: 'QUARENTENA' | 'ATIVO';
   let acaoLog: string;
@@ -231,7 +241,7 @@ router.patch('/:produtoId/quarentena', authMiddleware, requireRole('SINDICO'), a
       sindicoId: req.user!.id,
       acao: acaoLog,
       entidadeId: produtoId,
-      justificativa: justificativa || `Produto movido para ${novoStatus} pelo síndico`,
+      justificativa: motivo || `Produto movido para ${novoStatus} pelo síndico`,
     },
   });
 
@@ -241,7 +251,7 @@ router.patch('/:produtoId/quarentena', authMiddleware, requireRole('SINDICO'), a
     usuarioId: produto.vendedorId,
     tipo: acao === 'QUARENTENA' ? 'ANUNCIO_QUARENTENA' : 'ANUNCIO_RESTAURADO',
     mensagem: acao === 'QUARENTENA'
-      ? `O síndico ${produto.status === 'QUARENTENA' ? 'manteve' : 'colocou'} seu anúncio "${produto.nome}" em quarentena. Motivo: ${justificativa}`
+      ? `O síndico ${jaEmQuarentena ? 'manteve' : 'colocou'} seu anúncio "${produto.nome}" em quarentena. Motivo: ${motivo}`
       : `Seu anúncio "${produto.nome}" foi restaurado pelo síndico e voltou para a vitrine.`,
     entidadeTipo: 'PRODUTO',
     entidadeId: produto.id,

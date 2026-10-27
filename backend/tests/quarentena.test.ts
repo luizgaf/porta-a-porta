@@ -18,6 +18,23 @@ const produtoEmQuarentena = {
 const avisosGravados = () => prismaMock.notificacao.createMany.mock.calls.flatMap(([arg]) => arg.data);
 
 describe('Anúncio em quarentena', () => {
+  test('TU45 - anúncio já em quarentena por denúncias é mantido pelo síndico sem precisar de motivo', async () => {
+    const token = entrarComo(sindico);
+    prismaMock.produto.findFirst.mockResolvedValue(produtoEmQuarentena);
+    prismaMock.produto.update.mockResolvedValue(produtoEmQuarentena);
+    prismaMock.logAuditoria.create.mockResolvedValue({});
+
+    const { status } = await chamar('PATCH', `/api/denuncias/${PRODUTO_1}/quarentena`, token, { acao: 'QUARENTENA' });
+
+    expect(status).toBe(200);
+    expect(prismaMock.logAuditoria.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ acao: 'APLICAR_QUARENTENA', justificativa: MOTIVO_AUTOMATICO }),
+    });
+    expect(avisosGravados()).toEqual([
+      expect.objectContaining({ usuarioId: vendedor.id, mensagem: expect.stringContaining(`Motivo: ${MOTIVO_AUTOMATICO}`) }),
+    ]);
+  });
+
   test('TU42 - anúncio em quarentena não aparece para outros moradores (RN02)', async () => {
     const token = entrarComo(comprador);
     prismaMock.produto.findFirst.mockResolvedValue(produtoEmQuarentena);
@@ -51,12 +68,24 @@ describe('Anúncio em quarentena', () => {
     prismaMock.logAuditoria.findMany.mockResolvedValue([
       { entidadeId: PRODUTO_1, acao: 'APLICAR_QUARENTENA', justificativa: 'Foto não corresponde ao produto', criadoEm: new Date() },
     ]);
+    prismaMock.denuncia.findMany.mockResolvedValue([
+      { produtoId: PRODUTO_1, motivo: 'Foto enganosa' },
+      { produtoId: PRODUTO_1, motivo: 'Produto vencido' },
+    ]);
 
     const { status, corpo } = await chamar('GET', `/api/produtos/${PRODUTO_1}`, token);
 
     expect(status).toBe(200);
     expect(corpo.produto.quarentena).toEqual(
-      expect.objectContaining({ motivo: 'Foto não corresponde ao produto', porSindico: true }),
+      expect.objectContaining({
+        motivo: 'Foto não corresponde ao produto',
+        porSindico: true,
+        denuncias: ['Foto enganosa', 'Produto vencido'],
+      }),
+    );
+    // Os motivos das denúncias vêm sem identificação de quem denunciou
+    expect(prismaMock.denuncia.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ select: { produtoId: true, motivo: true } }),
     );
 
     // Sem decisão do síndico (ou depois de uma restauração), o motivo é a suspensão automática

@@ -164,10 +164,11 @@ The seed script creates **10 condomínios** with the following accounts per cond
 | Role | Email | Password | Condomínio | Unidade |
 |------|-------|----------|------------|---------|
 | Síndico | `sindico1@pap.com` – `sindico10@pap.com` | `sindico123` | Condomínio 1 – 10 | Sala {n} |
-| Comprador | `comprador1@pap.com` – `comprador10@pap.com` | `comprador123` | Condomínio 1 – 10 | Apto 101 |
+| Comprador | `comprador1@pap.com`, `comprador2@pap.com` | `comprador123` | Condomínio 1 | Apto 101, Apto 102 |
+| Comprador | `comprador3@pap.com` – `comprador10@pap.com` | `comprador123` | Condomínio 3 – 10 | Apto 101 |
 | Vendedor | `vendedor1@pap.com` – `vendedor10@pap.com` | `vendedor123` | Condomínio 1 – 10 | Apto 202 |
 
-Only `vendedor1@pap.com` (Condomínio 1) starts with products (15, with photos).
+`vendedor1@pap.com` (Condomínio 1) starts with 15 products with photos; "Café da Manhã Completo" starts in quarantine with 3 reports. Each `vendedorN` (2–10) gets one product copied from vendedor1.
 
 ### Quick Login Reference
 
@@ -176,7 +177,8 @@ Síndico 1:   sindico1@pap.com   / sindico123
 Comprador:   comprador1@pap.com / comprador123
 Vendedor:    vendedor1@pap.com  / vendedor123
 Síndico 2-10: sindico2@pap.com … sindico10@pap.com / sindico123
-Comprador/Vendedor 2-10: compradorN@pap.com / comprador123, vendedorN@pap.com / vendedor123 (N = condomínio)
+Comprador 2: comprador2@pap.com / comprador123 (Condomínio 1)
+Comprador 3-10 / Vendedor 2-10: compradorN@pap.com / comprador123, vendedorN@pap.com / vendedor123 (N = condomínio)
 ```
 
 ### Síndico Capabilities

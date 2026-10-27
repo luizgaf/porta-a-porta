@@ -4,7 +4,7 @@ import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
-import { Card, Button, Avatar, Input } from '../../components/ui';
+import { Card, Button, Avatar, Input, AvisoQuarentena } from '../../components/ui';
 import { STATUS_LABELS, CATEGORIAS } from '../../constants';
 import { Produto } from '../../types';
 import { formatBRL } from '../../utils/format';
@@ -155,13 +155,7 @@ export default function SellerScreen() {
       </View>
 
       {item.status === 'QUARENTENA' && (
-        <View style={styles.avisoQuarentena}>
-          <Ionicons name="shield-outline" size={16} color="#DC3545" />
-          <Text style={styles.avisoQuarentenaTexto}>
-            {item.quarentena?.porSindico ? 'Suspenso pelo síndico. ' : ''}
-            {item.quarentena?.motivo || 'Suspenso após denúncias.'} Só o síndico pode reativar.
-          </Text>
-        </View>
+        <AvisoQuarentena quarentena={item.quarentena} para="vendedor" compacto />
       )}
 
       {item.status !== 'EXCLUIDO' && (
@@ -498,20 +492,6 @@ const styles = StyleSheet.create({
   // Botões lado a lado dividem a largura (um sozinho ocupa a linha toda)
   botaoMetade: {
     flex: 1,
-  },
-  avisoQuarentena: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    padding: 8,
-    marginBottom: 8,
-    borderRadius: 8,
-    backgroundColor: '#FDECEA',
-  },
-  avisoQuarentenaTexto: {
-    flex: 1,
-    fontSize: 13,
-    color: '#A52834',
   },
   emptyState: {
     alignItems: 'center',
