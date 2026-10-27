@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
+import { sancaoAtiva, mensagemDeBloqueio, codigoDeBloqueio } from '../services/sancoes';
 
 const prisma = new PrismaClient();
 
@@ -15,6 +16,7 @@ export interface AuthRequest extends Request {
     email: string;
     unidade: string;
     tipo: TipoUsuario;
+    fotoUrl?: string | null;
     // Condomínio do cadastro. O condominioId acima é o condomínio ativo, que pode ser
     // outro em que o usuário tem vínculo aprovado (ver rotas de vínculos)
     condominioOrigemId: string;
@@ -59,6 +61,7 @@ export const authMiddleware = async (
         email: true,
         unidade: true,
         tipo: true,
+        fotoUrl: true,
       },
     });
 
@@ -66,6 +69,17 @@ export const authMiddleware = async (
       return res.status(401).json({
         error: 'Usuário não encontrado',
         code: 'USER_NOT_FOUND',
+      });
+    }
+
+    // Suspensão ou banimento pelo síndico bloqueia o acesso ao condomínio ativo
+    const condominioAtivo = decoded.condominioId || usuario.condominioId;
+    const bloqueio = await sancaoAtiva(prisma, usuario.id, condominioAtivo);
+    if (bloqueio) {
+      return res.status(403).json({
+        error: mensagemDeBloqueio(bloqueio),
+        code: codigoDeBloqueio(bloqueio),
+        ate: bloqueio.ate,
       });
     }
 

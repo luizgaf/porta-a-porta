@@ -16,6 +16,7 @@ export interface Usuario {
   unidade: string;
   tipo: TipoUsuario;
   criadoEm: string;
+  fotoUrl?: string | null;
   // condominioId é o condomínio ativo; o de origem é o do cadastro
   condominioOrigemId?: string;
   condominioNome?: string;
@@ -96,7 +97,53 @@ export interface Produto {
     id: string;
     nome: string;
     unidade: string;
+    fotoUrl?: string | null;
   };
+}
+
+// Painel de usuários do síndico (sem e-mail nem CPF)
+export type SituacaoUsuario = 'ATIVO' | 'SUSPENSO' | 'BANIDO';
+export type TipoSancao = 'ADVERTENCIA' | 'SUSPENSAO' | 'BANIMENTO';
+
+export interface UsuarioDoPainel {
+  id: string;
+  nome: string;
+  unidade: string;
+  tipo: TipoUsuario;
+  fotoUrl?: string | null;
+  entrouEm: string;
+  origem: 'MORADOR' | 'PARTICIPANTE';
+  condominioOrigem: string | null;
+  novo: boolean;
+  situacao: SituacaoUsuario;
+  bloqueio: { motivo: string; ate: string | null } | null;
+  advertencias: number;
+}
+
+export interface PainelUsuarios {
+  resumo: {
+    total: number;
+    novos: number;
+    diasNovo: number;
+    compradores: number;
+    vendedores: number;
+    sindicos: number;
+    participantes: number;
+    suspensos: number;
+    banidos: number;
+    comAdvertencia: number;
+    pedidosParticipacao: number;
+  };
+  usuarios: UsuarioDoPainel[];
+}
+
+export interface Sancao {
+  id: string;
+  tipo: TipoSancao;
+  motivo: string;
+  ate: string | null;
+  revogadaEm: string | null;
+  criadoEm: string;
 }
 
 export interface ItemPedido {
@@ -173,7 +220,11 @@ export type TipoNotificacao =
   | 'DENUNCIA_PARA_ANALISE'
   | 'PEDIDO_VINCULO'
   | 'VINCULO_APROVADO'
-  | 'VINCULO_RECUSADO';
+  | 'VINCULO_RECUSADO'
+  | 'ADVERTENCIA'
+  | 'SUSPENSAO'
+  | 'BANIMENTO'
+  | 'REATIVACAO';
 
 export interface Notificacao {
   id: string;

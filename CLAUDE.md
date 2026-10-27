@@ -21,7 +21,7 @@ Sistema móvel para organizar comércio interno em condomínios residenciais. Vi
 ### Estrutura do Banco (schema.prisma)
 ```
 Condominio (id, nome, endereco, criado_em)
-Usuario (id, condominio_id, nome, cpf, email, senha_hash, unidade, tipo)
+Usuario (id, condominio_id, nome, cpf, email, senha_hash, unidade, tipo, foto_url)
 Produto (id, condominio_id, vendedor_id, nome, descricao, preco, categoria, status)
 Pedido (id, condominio_id, comprador_id, unidade_entrega, tipo_entrega, janela_horario, status, valor_total)
 ItemPedido (id, pedido_id, produto_id, quantidade, preco_unitario)
@@ -30,6 +30,7 @@ Avaliacao (id, pedido_id, comprador_id, nota, comentario, removida_por) — UNIQ
 LogAuditoria (id, sindico_id, acao, entidade_id, justificativa)
 Notificacao (id, condominio_id, usuario_id, tipo, mensagem, entidade_tipo, entidade_id, lida)
 Vinculo (id, usuario_id, condominio_id, unidade, tipo_solicitado, tipo, status, decidido_por, decidido_em) — UNIQUE(usuario_id, condominio_id)
+Sancao (id, usuario_id, condominio_id, sindico_id, tipo ADVERTENCIA|SUSPENSAO|BANIMENTO, motivo, ate, revogada_em, revogada_por)
 Produto.imagem_url — foto do produto guardada no servidor (pasta backend/uploads, servida em /uploads)
 ```
 
@@ -119,6 +120,15 @@ npm run prisma:studio
 - `POST /api/vinculos/trocar` — `{ condominioId }` → token novo com o condomínio ativo trocado
 - `GET /api/vinculos/pendentes` — Pedidos pendentes do condomínio (SINDICO)
 - `PATCH /api/vinculos/:id` — `{ aprovar, tipo?, justificativa? }` (SINDICO; motivo obrigatório na recusa)
+
+### Usuários: foto de perfil e painel do síndico
+- `PUT /api/usuarios/me/foto` — Foto de perfil (multipart `foto` ou arquivo no corpo; JPEG/PNG/WebP até 5 MB). `DELETE /api/usuarios/me/foto` remove
+- `GET /api/usuarios/painel` — SINDICO: resumo (total, novos em 30 dias, por perfil, suspensos, banidos, advertidos, pedidos de participação) e lista de moradores e participantes do condomínio ativo, sem e-mail/CPF
+- `GET /api/usuarios/:id/sancoes` — Histórico de sanções no condomínio (SINDICO)
+- `POST /api/usuarios/:id/sancoes` — `{ tipo: ADVERTENCIA|SUSPENSAO|BANIMENTO, motivo, dias? }` (SINDICO; dias 1-90 na suspensão). Suspensão e banimento pausam os anúncios ativos do usuário naquele condomínio; LogAuditoria `ADVERTIR_USUARIO`/`SUSPENDER_USUARIO`/`BANIR_USUARIO`; aviso ao usuário
+- `POST /api/usuarios/:id/reativar` — Encerra suspensão/banimento (SINDICO; LogAuditoria `REATIVAR_USUARIO`)
+- Não vale contra o próprio síndico nem contra outro síndico. Suspenso/banido recebe 403 `USUARIO_SUSPENSO`/`USUARIO_BANIDO` em qualquer chamada àquele condomínio e no login (condomínio de origem); o app encerra a sessão e mostra o motivo
+- Fotos (produto e perfil) são enviadas pelo app como multipart/form-data (`api.enviarFoto`), sem `fetch(uri).blob()`
 
 ### Dashboard de vendas
 - `GET /api/pedidos/dashboard` — VENDEDOR: total vendido (entregues), em andamento, pedidos por status, mais vendidos, últimos 6 meses e últimos pedidos, no condomínio ativo, somando só os itens do vendedor
@@ -221,7 +231,7 @@ frontend/
 | `/(tabs)/dashboard` | Painel de vendas (dashboard) | VENDEDOR/SINDICO |
 | `/(tabs)/seller` | Anúncios do vendedor | VENDEDOR/SINDICO |
 | `/condominios` | Trocar de condomínio / pedir para participar de outro | Autenticado |
-| `/(tabs)/moderator` | Painel moderação | SINDICO |
+| `/(tabs)/moderator` | Moderação: denúncias, avaliações e usuários (painel do condomínio, pedidos de participação, sanções) | SINDICO |
 | `/product/[id]` | Detalhe produto | Autenticado |
 | `/product/new` | Criar produto | VENDEDOR/SINDICO |
 | `/order/[id]` | Detalhe pedido + ações | Autenticado |

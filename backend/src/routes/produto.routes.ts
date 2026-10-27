@@ -66,7 +66,7 @@ router.post('/', authMiddleware, requireRole('VENDEDOR'), asyncHandler(async (re
     },
     include: {
       vendedor: {
-        select: { id: true, nome: true, unidade: true },
+        select: { id: true, nome: true, unidade: true, fotoUrl: true },
       },
     },
   });
@@ -111,7 +111,7 @@ router.get('/', authMiddleware, asyncHandler(async (req: AuthRequest, res: Respo
       where,
       include: {
         vendedor: {
-          select: { id: true, nome: true, unidade: true },
+          select: { id: true, nome: true, unidade: true, fotoUrl: true },
         },
       },
       orderBy: { criadoEm: 'desc' },
@@ -187,7 +187,7 @@ router.get('/:id', authMiddleware, asyncHandler(async (req: AuthRequest, res: Re
     },
     include: {
       vendedor: {
-        select: { id: true, nome: true, unidade: true },
+        select: { id: true, nome: true, unidade: true, fotoUrl: true },
       },
     },
   });
@@ -233,7 +233,7 @@ router.put('/:id', authMiddleware, asyncHandler(async (req: AuthRequest, res: Re
     data,
     include: {
       vendedor: {
-        select: { id: true, nome: true, unidade: true },
+        select: { id: true, nome: true, unidade: true, fotoUrl: true },
       },
     },
   });

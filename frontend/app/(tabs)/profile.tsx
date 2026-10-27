@@ -8,12 +8,53 @@ import { Card, Button, Avatar, Input } from '../../components/ui';
 import { STATUS_LABELS, TIPO_ENTREGA_LABELS } from '../../constants';
 import { Usuario, Produto, Pedido } from '../../types';
 import { formatBRL } from '../../utils/format';
+import { escolherFoto } from '../../utils/foto';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { usuario, isVendedor, isSindico, logout, updateUsuario, hasRole } = useAuth();
-  const { getMeusProdutos, getPedidos, updateUsuario: updateUsuarioApi } = useApi();
+  const { getMeusProdutos, getPedidos, updateUsuario: updateUsuarioApi, enviarFotoPerfil, removerFotoPerfil } = useApi();
   const [savingProfile, setSavingProfile] = useState(false);
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
+
+  // Foto de perfil: escolhe na galeria (recorte quadrado) e envia; ou remove a atual
+  const trocarFoto = async () => {
+    const foto = await escolherFoto([1, 1]);
+    if (!foto) return;
+    setEnviandoFoto(true);
+    try {
+      const resposta = await enviarFotoPerfil(foto.uri, foto.tipo);
+      updateUsuario({ fotoUrl: resposta.fotoUrl });
+    } catch (error: any) {
+      Alert.alert('Erro', error.message || 'Não foi possível enviar a foto');
+    } finally {
+      setEnviandoFoto(false);
+    }
+  };
+
+  const removerFoto = async () => {
+    setEnviandoFoto(true);
+    try {
+      await removerFotoPerfil();
+      updateUsuario({ fotoUrl: null });
+    } catch (error: any) {
+      Alert.alert('Erro', error.message || 'Não foi possível remover a foto');
+    } finally {
+      setEnviandoFoto(false);
+    }
+  };
+
+  const opcoesDaFoto = () => {
+    if (!usuario?.fotoUrl) {
+      trocarFoto();
+      return;
+    }
+    Alert.alert('Foto de perfil', undefined, [
+      { text: 'Escolher outra foto', onPress: trocarFoto },
+      { text: 'Remover foto', style: 'destructive', onPress: removerFoto },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  };
 
   const [meusProdutos, setMeusProdutos] = useState<Produto[]>([]);
   const [meusPedidos, setMeusPedidos] = useState<Pedido[]>([]);
@@ -107,7 +148,22 @@ export default function ProfileScreen() {
       {/* Profile Header */}
       <Card style={styles.profileCard}>
         <View style={styles.profileHeader}>
-          <Avatar name={usuario.nome} size="xl" />
+          <TouchableOpacity
+            onPress={opcoesDaFoto}
+            disabled={enviandoFoto}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={usuario.fotoUrl ? 'Trocar ou remover foto de perfil' : 'Adicionar foto de perfil'}
+          >
+            <Avatar name={usuario.nome} foto={usuario.fotoUrl} size="xl" />
+            <View style={styles.fotoBotao}>
+              {enviandoFoto ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons name="camera" size={14} color="#FFFFFF" />
+              )}
+            </View>
+          </TouchableOpacity>
           <View style={styles.profileInfo}>
             {editMode ? (
               <>
@@ -414,6 +470,19 @@ const styles = StyleSheet.create({
   // Dois botões lado a lado, cada um com metade da largura
   botaoMetade: {
     flex: 1,
+  },
+  fotoBotao: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#C65D3B',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
   editActions: {
     flexDirection: 'row',

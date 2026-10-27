@@ -23,17 +23,17 @@ const tipoDaFoto = (mimeType: string | null | undefined, uri: string) => {
 
 // Abre a galeria para o vendedor escolher a foto do produto.
 // A foto é recortada em 4:3 e comprimida; o servidor confere de novo o formato e o limite de 5 MB (RNF05).
-export const escolherFoto = async (): Promise<FotoEscolhida | null> => {
+export const escolherFoto = async (aspecto: [number, number] = [4, 3]): Promise<FotoEscolhida | null> => {
   const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permissao.granted) {
-    Alert.alert('Permissão necessária', 'Autorize o acesso às fotos para adicionar uma imagem ao produto.');
+    Alert.alert('Permissão necessária', 'Autorize o acesso às fotos para escolher uma imagem.');
     return null;
   }
 
   const resultado = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images'],
     allowsEditing: true,
-    aspect: [4, 3],
+    aspect: aspecto,
     quality: 0.7,
   });
 
