@@ -75,9 +75,6 @@ export default function NotificationsScreen() {
       router.push({ pathname: '/(tabs)/moderator', params: { aba: 'MORADORES' } });
     } else if (aviso.tipo === 'VINCULO_APROVADO' || aviso.tipo === 'VINCULO_RECUSADO') {
       router.push('/condominios');
-    } else if (aviso.tipo === 'ANUNCIO_QUARENTENA') {
-      // Anúncio suspenso não abre para o vendedor; o painel mostra o status
-      router.push('/(tabs)/seller');
     } else if (aviso.entidadeTipo === 'PRODUTO' && aviso.entidadeId) {
       router.push(`/product/${aviso.entidadeId}`);
     }

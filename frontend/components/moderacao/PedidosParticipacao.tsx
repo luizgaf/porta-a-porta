@@ -29,24 +29,25 @@ export function PedidosParticipacao({ atualizar, onContagem }: Props) {
     try {
       const resposta = await getPedidosParticipacao();
       setPedidos(resposta.pedidos);
-      onContagem?.(resposta.pedidos.length);
     } catch (error: any) {
       Alert.alert('Erro', error.message || 'Não foi possível carregar os pedidos');
     } finally {
       setCarregando(false);
     }
-  }, [getPedidosParticipacao, onContagem]);
+  }, [getPedidosParticipacao]);
 
   useEffect(() => {
     carregar();
   }, [carregar, atualizar]);
 
+  // Avisa a tela de moderação depois que a lista muda. Chamar onContagem dentro do setPedidos
+  // atualizava a outra tela durante a renderização (erro "Cannot update a component while rendering")
+  useEffect(() => {
+    if (!carregando) onContagem?.(pedidos.length);
+  }, [pedidos, carregando, onContagem]);
+
   const remover = (id: string) => {
-    setPedidos((lista) => {
-      const nova = lista.filter((p) => p.id !== id);
-      onContagem?.(nova.length);
-      return nova;
-    });
+    setPedidos((lista) => lista.filter((p) => p.id !== id));
   };
 
   const aprovar = async (pedido: PedidoVinculo, tipo: 'COMPRADOR' | 'VENDEDOR') => {

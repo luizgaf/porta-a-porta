@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     ...shadows.sm,
   },
   fullWidth: {
-    width: '100%',
+    alignSelf: 'stretch',
   },
   disabled: {
     opacity: 0.5,

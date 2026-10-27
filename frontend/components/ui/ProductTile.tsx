@@ -15,6 +15,8 @@ interface ProductTileProps {
 // sempre na mesma posição, para todos os cards da grade terem o mesmo tamanho.
 export const ProductTile: React.FC<ProductTileProps> = ({ produto, onPress, style }) => {
   const pausado = produto.status === 'PAUSADO';
+  // Em quarentena, o anúncio só chega à vitrine do síndico e do próprio vendedor
+  const emQuarentena = produto.status === 'QUARENTENA';
 
   return (
     <TouchableOpacity
@@ -26,9 +28,9 @@ export const ProductTile: React.FC<ProductTileProps> = ({ produto, onPress, styl
     >
       <View style={styles.fotoArea}>
         <ProductImage url={produto.imagemUrl} style={styles.foto} iconSize={36} />
-        {pausado && (
-          <View style={styles.selo}>
-            <Text style={styles.seloTexto}>Indisponível</Text>
+        {(pausado || emQuarentena) && (
+          <View style={[styles.selo, emQuarentena && styles.seloQuarentena]}>
+            <Text style={styles.seloTexto}>{emQuarentena ? 'Em quarentena' : 'Indisponível'}</Text>
           </View>
         )}
       </View>
@@ -41,7 +43,7 @@ export const ProductTile: React.FC<ProductTileProps> = ({ produto, onPress, styl
           {produto.nome}
         </Text>
         <View style={styles.rodape}>
-          <Text style={[styles.preco, pausado && styles.precoPausado]}>{formatBRL(produto.preco)}</Text>
+          <Text style={[styles.preco, (pausado || emQuarentena) && styles.precoPausado]}>{formatBRL(produto.preco)}</Text>
           {produto.vendedor?.unidade ? (
             <Text style={styles.unidade} numberOfLines={1}>
               {produto.vendedor.unidade}
@@ -80,6 +82,9 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: borderRadius.full,
     backgroundColor: 'rgba(27, 42, 58, 0.85)',
+  },
+  seloQuarentena: {
+    backgroundColor: 'rgba(198, 40, 40, 0.9)',
   },
   seloTexto: {
     fontFamily: typography.labelSmall.fontFamily,

@@ -11,6 +11,7 @@ import {
   removerImagem,
 } from '../services/imagens';
 import { unidadesNoCondominio } from '../services/unidades';
+import { motivosDeQuarentena } from '../services/quarentena';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -79,11 +80,18 @@ router.get('/', authMiddleware, asyncHandler(async (req: AuthRequest, res: Respo
     condominioId: req.user!.condominioId,
   };
 
-  // Usuários não-síndicos não veem produtos em quarentena/excluído
-  if (req.user!.tipo !== 'SINDICO') {
-    where.status = { in: ['ATIVO', 'PAUSADO'] };
-  } else if (status) {
-    where.status = status;
+  // Anúncio em quarentena só aparece para o síndico e para o vendedor dono (RN02); excluídos não aparecem
+  if (req.user!.tipo === 'SINDICO') {
+    where.status = status ?? { not: 'EXCLUIDO' };
+  } else {
+    where.AND = [
+      {
+        OR: [
+          { status: { in: ['ATIVO', 'PAUSADO'] } },
+          { status: 'QUARENTENA', vendedorId: req.user!.id },
+        ],
+      },
+    ];
   }
 
   if (categoria) where.categoria = categoria;
@@ -113,7 +121,7 @@ router.get('/', authMiddleware, asyncHandler(async (req: AuthRequest, res: Respo
   await unidadesNoCondominio(prisma, req.user!.condominioId, produtos.map((p) => p.vendedor));
 
   res.json({
-    produtos,
+    produtos: await comMotivoDeQuarentena(produtos),
     paginacao: {
       pagina,
       limite,
@@ -122,6 +130,15 @@ router.get('/', authMiddleware, asyncHandler(async (req: AuthRequest, res: Respo
     },
   });
 }));
+
+// Acrescenta o motivo da quarentena aos anúncios suspensos. Só é chamada nas respostas que
+// chegam ao síndico ou ao vendedor dono, pois os demais não recebem anúncios em quarentena.
+const comMotivoDeQuarentena = async <T extends { id: string; status: string }>(produtos: T[]) => {
+  const suspensos = produtos.filter((p) => p.status === 'QUARENTENA').map((p) => p.id);
+  if (suspensos.length === 0) return produtos;
+  const motivos = await motivosDeQuarentena(prisma, suspensos);
+  return produtos.map((p) => (p.status === 'QUARENTENA' ? { ...p, quarentena: motivos.get(p.id) } : p));
+};
 
 // GET /api/produtos/meus - Meus produtos (vendedor)
 router.get('/meus', authMiddleware, requireRole('VENDEDOR'), asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -146,7 +163,7 @@ router.get('/meus', authMiddleware, requireRole('VENDEDOR'), asyncHandler(async 
   ]);
 
   res.json({
-    produtos,
+    produtos: await comMotivoDeQuarentena(produtos),
     paginacao: {
       pagina,
       limite,
@@ -177,13 +194,17 @@ router.get('/:id', authMiddleware, asyncHandler(async (req: AuthRequest, res: Re
   }
 
   // Verifica se usuário pode ver produto em quarentena/excluído
-  if (['QUARENTENA', 'EXCLUIDO'].includes(produto.status) && req.user!.tipo !== 'SINDICO') {
+  // Em quarentena, só o síndico e o vendedor dono veem o anúncio; excluído, só o síndico
+  const ehDono = produto.vendedorId === req.user!.id;
+  const ehSindico = req.user!.tipo === 'SINDICO';
+  if ((produto.status === 'QUARENTENA' && !ehDono && !ehSindico) || (produto.status === 'EXCLUIDO' && !ehSindico)) {
     throw new AppError(404, 'Produto não encontrado', 'PRODUTO_NOT_FOUND');
   }
 
   await unidadesNoCondominio(prisma, req.user!.condominioId, [produto.vendedor]);
 
-  res.json({ produto });
+  const [comMotivo] = await comMotivoDeQuarentena([produto]);
+  res.json({ produto: comMotivo });
 }));
 
 // PUT /api/produtos/:id - Atualizar produto (apenas vendedor dono ou síndico)
@@ -240,6 +261,15 @@ router.patch('/:id/status', authMiddleware, asyncHandler(async (req: AuthRequest
   // Verifica permissão
   if (produto.vendedorId !== req.user!.id && req.user!.tipo !== 'SINDICO') {
     throw new AppError(403, 'Não autorizado a alterar este produto', 'FORBIDDEN');
+  }
+
+  // RN02: anúncio em quarentena só sai dela por decisão do síndico; o vendedor não reativa nem pausa.
+  // Anúncio excluído também não volta pela troca de status.
+  if (produto.status === 'QUARENTENA' && req.user!.tipo !== 'SINDICO') {
+    throw new AppError(403, 'Anúncio em quarentena: só o síndico pode reativá-lo', 'PRODUTO_EM_QUARENTENA');
+  }
+  if (produto.status === 'EXCLUIDO' && req.user!.tipo !== 'SINDICO') {
+    throw new AppError(403, 'Anúncio excluído não pode ser reativado', 'PRODUTO_EXCLUIDO');
   }
 
   // RN01: Se ativando, verificar limite de 15 produtos ATIVOS

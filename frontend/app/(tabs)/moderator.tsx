@@ -156,6 +156,10 @@ export default function ModeratorScreen() {
   const handleQuarentena = async () => {
     if (!selectedDenuncia || !acaoPendente) return;
     const acao = acaoPendente;
+    if (acao === 'QUARENTENA' && justificativa.trim().length < 5) {
+      Alert.alert('Motivo obrigatório', 'Explique o motivo da quarentena (mínimo 5 caracteres). O vendedor vai ler este texto.');
+      return;
+    }
     const novoStatus = acao === 'QUARENTENA' ? 'QUARENTENA' : 'ATIVO';
 
     setProcessando(true);
@@ -422,7 +426,7 @@ export default function ModeratorScreen() {
                   {acaoPendente ? (
                     <>
                       <Input
-                        label="Justificativa (opcional)"
+                        label={acaoPendente === 'QUARENTENA' ? 'Motivo (o vendedor vai ler este texto)' : 'Justificativa (opcional)'}
                         placeholder={acaoPendente === 'QUARENTENA' ? 'Por que suspender este produto?' : 'Por que restaurar este produto?'}
                         value={justificativa}
                         onChangeText={setJustificativa}
@@ -437,11 +441,34 @@ export default function ModeratorScreen() {
                       />
                       <Button title="Cancelar" onPress={() => setAcaoPendente(null)} variant="ghost" fullWidth />
                     </>
+                  ) : produtoDetalhe?.status === 'QUARENTENA' ? (
+                    <>
+                      {produtoDetalhe.quarentena && (
+                        <Text style={styles.motivoAtual}>
+                          {produtoDetalhe.quarentena.porSindico ? 'Motivo registrado: ' : ''}
+                          {produtoDetalhe.quarentena.motivo}
+                        </Text>
+                      )}
+                      <Button
+                        title="Restaurar Produto"
+                        onPress={() => setAcaoPendente('RESTAURAR')}
+                        disabled={loadingDenunciasProduto}
+                        fullWidth
+                      />
+                      {/* Na quarentena automática, o síndico confirma a suspensão e registra o motivo para o vendedor */}
+                      <Button
+                        title="Manter em Quarentena"
+                        onPress={() => setAcaoPendente('QUARENTENA')}
+                        variant="danger"
+                        disabled={loadingDenunciasProduto}
+                        fullWidth
+                      />
+                    </>
                   ) : (
                     <Button
-                      title={produtoDetalhe?.status === 'QUARENTENA' ? 'Restaurar Produto' : 'Colocar em Quarentena'}
-                      onPress={() => setAcaoPendente(produtoDetalhe?.status === 'QUARENTENA' ? 'RESTAURAR' : 'QUARENTENA')}
-                      variant={produtoDetalhe?.status === 'QUARENTENA' ? 'primary' : 'danger'}
+                      title="Colocar em Quarentena"
+                      onPress={() => setAcaoPendente('QUARENTENA')}
+                      variant="danger"
                       disabled={loadingDenunciasProduto}
                       fullWidth
                     />
@@ -473,6 +500,13 @@ const getStatusColor = (status: string) => {
 };
 
 const styles = StyleSheet.create({
+  motivoAtual: {
+    fontSize: 13,
+    color: '#A52834',
+    backgroundColor: '#FDECEA',
+    padding: 10,
+    borderRadius: 8,
+  },
   abas: {
     flexDirection: 'row',
     backgroundColor: '#E8EFF5',

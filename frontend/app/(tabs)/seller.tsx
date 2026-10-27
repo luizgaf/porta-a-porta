@@ -154,22 +154,37 @@ export default function SellerScreen() {
         {renderStatusBadge(item.status)}
       </View>
 
-      <View style={styles.produtoActions}>
-        <Button
-          title={item.status === 'ATIVO' ? 'Pausar' : 'Ativar'}
-          onPress={() => handleToggleStatus(item)}
-          variant={item.status === 'ATIVO' ? 'outline' : 'primary'}
-          size="sm"
-          fullWidth
-        />
-        <Button
-          title="Excluir"
-          onPress={() => handleDelete(item)}
-          variant="danger"
-          size="sm"
-          fullWidth
-        />
-      </View>
+      {item.status === 'QUARENTENA' && (
+        <View style={styles.avisoQuarentena}>
+          <Ionicons name="shield-outline" size={16} color="#DC3545" />
+          <Text style={styles.avisoQuarentenaTexto}>
+            {item.quarentena?.porSindico ? 'Suspenso pelo síndico. ' : ''}
+            {item.quarentena?.motivo || 'Suspenso após denúncias.'} Só o síndico pode reativar.
+          </Text>
+        </View>
+      )}
+
+      {item.status !== 'EXCLUIDO' && (
+        <View style={styles.produtoActions}>
+          {/* Em quarentena, o vendedor não reativa: a decisão é do síndico (RN02) */}
+          {item.status !== 'QUARENTENA' && (
+            <Button
+              title={item.status === 'ATIVO' ? 'Pausar' : 'Ativar'}
+              onPress={() => handleToggleStatus(item)}
+              variant={item.status === 'ATIVO' ? 'outline' : 'primary'}
+              size="sm"
+              style={styles.botaoMetade}
+            />
+          )}
+          <Button
+            title="Excluir"
+            onPress={() => handleDelete(item)}
+            variant="danger"
+            size="sm"
+            style={styles.botaoMetade}
+          />
+        </View>
+      )}
     </TouchableOpacity>
   );
 
@@ -344,8 +359,8 @@ export default function SellerScreen() {
             </ScrollView>
 
             <View style={styles.modalFooter}>
-              <Button title="Cancelar" onPress={() => setShowCreateModal(false)} variant="outline" fullWidth />
-              <Button title="Criar" onPress={handleCreateProduto} loading={creating} fullWidth />
+              <Button title="Cancelar" onPress={() => setShowCreateModal(false)} variant="outline" style={styles.botaoMetade} />
+              <Button title="Criar" onPress={handleCreateProduto} loading={creating} style={styles.botaoMetade} />
             </View>
           </View>
         </TouchableOpacity>
@@ -479,6 +494,24 @@ const styles = StyleSheet.create({
   produtoActions: {
     flexDirection: 'row',
     gap: 8,
+  },
+  // Botões lado a lado dividem a largura (um sozinho ocupa a linha toda)
+  botaoMetade: {
+    flex: 1,
+  },
+  avisoQuarentena: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    padding: 8,
+    marginBottom: 8,
+    borderRadius: 8,
+    backgroundColor: '#FDECEA',
+  },
+  avisoQuarentenaTexto: {
+    flex: 1,
+    fontSize: 13,
+    color: '#A52834',
   },
   emptyState: {
     alignItems: 'center',

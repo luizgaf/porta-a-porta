@@ -153,8 +153,8 @@ export default function ProfileScreen() {
 
         {editMode && (
           <View style={styles.editActions}>
-            <Button title="Cancelar" onPress={() => { setEditNome(usuario.nome); setEditUnidade(usuario.unidade); setEditMode(false); }} variant="outline" fullWidth />
-            <Button title="Salvar" onPress={handleSaveProfile} loading={savingProfile} fullWidth />
+            <Button title="Cancelar" onPress={() => { setEditNome(usuario.nome); setEditUnidade(usuario.unidade); setEditMode(false); }} variant="outline" style={styles.botaoMetade} />
+            <Button title="Salvar" onPress={handleSaveProfile} loading={savingProfile} style={styles.botaoMetade} />
           </View>
         )}
       </Card>
@@ -410,6 +410,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#1E3A5F',
+  },
+  // Dois botões lado a lado, cada um com metade da largura
+  botaoMetade: {
+    flex: 1,
   },
   editActions: {
     flexDirection: 'row',
