@@ -5,8 +5,8 @@ import { asyncHandler, AppError } from '../middleware/errorHandler';
 import { authMiddleware, AuthRequest, requireRole } from '../middleware/auth';
 import {
   TAMANHO_MAXIMO_IMAGEM,
-  TIPOS_DE_IMAGEM,
   LIMITE_CORPO_UPLOAD,
+  tipoDeclaradoAceitavel,
   extensaoPelaAssinatura,
   lerArquivoEnviado,
   salvarImagem,
@@ -135,7 +135,7 @@ router.put(
       throw new AppError(413, 'A foto deve ter no máximo 5 MB', 'ARQUIVO_MUITO_GRANDE');
     }
     const extensao = extensaoPelaAssinatura(conteudo);
-    if (!TIPOS_DE_IMAGEM.includes(tipo) || !extensao) {
+    if (!tipoDeclaradoAceitavel(tipo) || !extensao) {
       throw new AppError(415, 'Envie uma imagem JPEG, PNG ou WebP', 'FORMATO_INVALIDO');
     }
 
