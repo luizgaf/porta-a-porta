@@ -9,6 +9,18 @@ export interface FotoEscolhida {
 
 const TIPOS_ACEITOS = ['image/jpeg', 'image/png', 'image/webp'];
 
+// Alguns Android informam "image/jpg" (fora do padrão) ou não informam o tipo; aqui vira o tipo
+// padrão, deduzido pela extensão quando faltar. A API confere de novo pelo conteúdo do arquivo.
+const tipoDaFoto = (mimeType: string | null | undefined, uri: string) => {
+  const informado = (mimeType || '').toLowerCase();
+  if (informado === 'image/jpg' || informado === 'image/pjpeg') return 'image/jpeg';
+  if (informado) return informado;
+  const extensao = uri.split('?')[0].split('.').pop()?.toLowerCase();
+  if (extensao === 'png') return 'image/png';
+  if (extensao === 'webp') return 'image/webp';
+  return 'image/jpeg';
+};
+
 // Abre a galeria para o vendedor escolher a foto do produto.
 // A foto é recortada em 4:3 e comprimida; o servidor confere de novo o formato e o limite de 5 MB (RNF05).
 export const escolherFoto = async (): Promise<FotoEscolhida | null> => {
@@ -28,7 +40,7 @@ export const escolherFoto = async (): Promise<FotoEscolhida | null> => {
   if (resultado.canceled || !resultado.assets?.length) return null;
 
   const foto = resultado.assets[0];
-  const tipo = foto.mimeType || 'image/jpeg';
+  const tipo = tipoDaFoto(foto.mimeType, foto.uri);
 
   if (!TIPOS_ACEITOS.includes(tipo)) {
     Alert.alert('Formato não aceito', 'Escolha uma foto em JPEG, PNG ou WebP.');

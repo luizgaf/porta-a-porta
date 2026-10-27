@@ -9,6 +9,9 @@ import {
   extensaoPelaAssinatura,
   salvarImagem,
   removerImagem,
+  lerArquivoEnviado,
+  LIMITE_CORPO_UPLOAD,
+  tipoDeclaradoAceitavel,
 } from '../services/imagens';
 import { unidadesNoCondominio } from '../services/unidades';
 import { motivosDeQuarentena } from '../services/quarentena';
@@ -300,7 +303,7 @@ router.patch('/:id/status', authMiddleware, asyncHandler(async (req: AuthRequest
 router.put(
   '/:id/imagem',
   authMiddleware,
-  express.raw({ type: () => true, limit: TAMANHO_MAXIMO_IMAGEM }),
+  express.raw({ type: () => true, limit: LIMITE_CORPO_UPLOAD }),
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
 
@@ -316,11 +319,14 @@ router.put(
       throw new AppError(403, 'Não autorizado a alterar este produto', 'FORBIDDEN');
     }
 
-    const tipo = (req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
-    const arquivo = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+    // Arquivo direto no corpo ou em multipart/form-data (como o app envia)
+    const { conteudo: arquivo, tipo } = lerArquivoEnviado(req.body, req.headers['content-type']);
+    if (arquivo.length > TAMANHO_MAXIMO_IMAGEM) {
+      throw new AppError(413, 'A foto deve ter no máximo 5 MB', 'ARQUIVO_MUITO_GRANDE');
+    }
     const extensao = extensaoPelaAssinatura(arquivo);
 
-    if (!TIPOS_DE_IMAGEM.includes(tipo) || !extensao) {
+    if (!tipoDeclaradoAceitavel(tipo) || !extensao) {
       throw new AppError(415, 'Envie uma imagem JPEG, PNG ou WebP', 'FORMATO_INVALIDO');
     }
 

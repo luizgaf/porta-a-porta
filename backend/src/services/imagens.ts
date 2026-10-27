@@ -9,6 +9,11 @@ export const TAMANHO_MAXIMO_IMAGEM = 5 * 1024 * 1024;
 export const TIPOS_DE_IMAGEM = ['image/jpeg', 'image/png', 'image/webp'];
 export const PREFIXO_URL_IMAGENS = '/uploads';
 
+// O tipo informado pelo aparelho varia ("image/jpg", "application/octet-stream" ou vazio em alguns
+// Android); o que decide é o conteúdo do arquivo. Só recusamos de cara um tipo declarado que não é imagem.
+export const tipoDeclaradoAceitavel = (tipo: string) =>
+  !tipo || tipo.startsWith('image/') || tipo === 'application/octet-stream';
+
 export const pastaDeImagens = () =>
   path.resolve(process.env.UPLOAD_DIR || path.join(__dirname, '..', '..', 'uploads'));
 
@@ -34,4 +39,44 @@ export const removerImagem = async (url?: string | null) => {
   if (!url || !url.startsWith(`${PREFIXO_URL_IMAGENS}/`)) return;
   const nome = path.basename(url);
   await fs.rm(path.join(pastaDeImagens(), nome), { force: true });
+};
+
+// Folga para os cabeçalhos do multipart: o limite de 5 MB vale para a imagem, não para o envelope
+export const LIMITE_CORPO_UPLOAD = TAMANHO_MAXIMO_IMAGEM + 64 * 1024;
+
+export interface ArquivoRecebido {
+  conteudo: Buffer;
+  tipo: string;
+}
+
+// Lê a imagem enviada pelo app. Aceita o arquivo como corpo da requisição (Content-Type da imagem)
+// ou como multipart/form-data, que é como o React Native envia um arquivo a partir da URI local
+// sem precisar de Blob (fetch(uri).blob() falha em parte dos aparelhos).
+export const lerArquivoEnviado = (corpo: unknown, contentType = ''): ArquivoRecebido => {
+  const buffer = Buffer.isBuffer(corpo) ? corpo : Buffer.alloc(0);
+  const tipo = contentType.split(';')[0].trim().toLowerCase();
+  if (tipo !== 'multipart/form-data') return { conteudo: buffer, tipo };
+
+  const m = /boundary=(?:"([^"]+)"|([^;]+))/i.exec(contentType);
+  const limite = m ? (m[1] || m[2]).trim() : '';
+  if (!limite) return { conteudo: Buffer.alloc(0), tipo: '' };
+
+  const separador = Buffer.from(`--${limite}`);
+  let pos = buffer.indexOf(separador);
+  while (pos !== -1) {
+    const inicio = pos + separador.length;
+    if (buffer.toString('ascii', inicio, inicio + 2) === '--') break; // fim do multipart
+    const fimCabecalho = buffer.indexOf('\r\n\r\n', inicio);
+    if (fimCabecalho === -1) break;
+    const cabecalho = buffer.toString('utf8', inicio, fimCabecalho);
+    const proximo = buffer.indexOf(separador, fimCabecalho + 4);
+    if (proximo === -1) break;
+    // A primeira parte com arquivo é a foto; o conteúdo termina antes do \r\n do separador seguinte
+    if (/filename=/i.test(cabecalho)) {
+      const tipoParte = /content-type:\s*([^\r\n;]+)/i.exec(cabecalho)?.[1]?.trim().toLowerCase() ?? '';
+      return { conteudo: buffer.subarray(fimCabecalho + 4, proximo - 2), tipo: tipoParte };
+    }
+    pos = proximo;
+  }
+  return { conteudo: Buffer.alloc(0), tipo: '' };
 };
