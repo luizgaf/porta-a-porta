@@ -4,7 +4,7 @@ import { Link, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
-import { Card, Button, Input } from '../../components/ui';
+import { Card, Button, Input, AvisoQuarentena } from '../../components/ui';
 import { STATUS_LABELS } from '../../constants';
 import { Avaliacao, Denuncia, Produto } from '../../types';
 import { aoChegarPertoDoFim } from '../../utils/rolagem';
@@ -156,7 +156,8 @@ export default function ModeratorScreen() {
   const handleQuarentena = async () => {
     if (!selectedDenuncia || !acaoPendente) return;
     const acao = acaoPendente;
-    if (acao === 'QUARENTENA' && justificativa.trim().length < 5) {
+    // Já em quarentena por denúncias, manter dispensa o motivo (vale "Muitas denúncias: produto sob análise")
+    if (acao === 'QUARENTENA' && produtoDetalhe?.status !== 'QUARENTENA' && justificativa.trim().length < 5) {
       Alert.alert('Motivo obrigatório', 'Explique o motivo da quarentena (mínimo 5 caracteres). O vendedor vai ler este texto.');
       return;
     }
@@ -200,6 +201,11 @@ export default function ModeratorScreen() {
         <View style={styles.denunciaProduto}>
           <Text style={styles.denunciaProdutoNome}>{item.produto?.nome || 'Produto'}</Text>
           {item.produto?.status ? renderStatusBadge(item.produto.status) : null}
+          {item.produto?.status === 'QUARENTENA' && (item.produto.totalDenuncias ?? 0) >= 3 ? (
+            <Text style={styles.quarentenaAutomatica}>
+              Já em quarentena por {item.produto.totalDenuncias} denúncias: produto sob análise
+            </Text>
+          ) : null}
         </View>
         <View style={styles.denunciaMeta}>
           <Text style={styles.denunciaDenunciante}>Denúncia anônima</Text>
@@ -426,7 +432,13 @@ export default function ModeratorScreen() {
                   {acaoPendente ? (
                     <>
                       <Input
-                        label={acaoPendente === 'QUARENTENA' ? 'Motivo (o vendedor vai ler este texto)' : 'Justificativa (opcional)'}
+                        label={
+                          acaoPendente === 'QUARENTENA'
+                            ? produtoDetalhe?.status === 'QUARENTENA'
+                              ? 'Motivo (opcional; o vendedor vai ler este texto)'
+                              : 'Motivo (o vendedor vai ler este texto)'
+                            : 'Justificativa (opcional)'
+                        }
                         placeholder={acaoPendente === 'QUARENTENA' ? 'Por que suspender este produto?' : 'Por que restaurar este produto?'}
                         value={justificativa}
                         onChangeText={setJustificativa}
@@ -443,19 +455,14 @@ export default function ModeratorScreen() {
                     </>
                   ) : produtoDetalhe?.status === 'QUARENTENA' ? (
                     <>
-                      {produtoDetalhe.quarentena && (
-                        <Text style={styles.motivoAtual}>
-                          {produtoDetalhe.quarentena.porSindico ? 'Motivo registrado: ' : ''}
-                          {produtoDetalhe.quarentena.motivo}
-                        </Text>
-                      )}
+                      <AvisoQuarentena quarentena={produtoDetalhe.quarentena} para="sindico" />
                       <Button
                         title="Restaurar Produto"
                         onPress={() => setAcaoPendente('RESTAURAR')}
                         disabled={loadingDenunciasProduto}
                         fullWidth
                       />
-                      {/* Na quarentena automática, o síndico confirma a suspensão e registra o motivo para o vendedor */}
+                      {/* Opcional: o anúncio já está fora da vitrine; manter só registra a decisão do síndico */}
                       <Button
                         title="Manter em Quarentena"
                         onPress={() => setAcaoPendente('QUARENTENA')}
@@ -500,12 +507,11 @@ const getStatusColor = (status: string) => {
 };
 
 const styles = StyleSheet.create({
-  motivoAtual: {
-    fontSize: 13,
-    color: '#A52834',
-    backgroundColor: '#FDECEA',
-    padding: 10,
-    borderRadius: 8,
+  quarentenaAutomatica: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#B42318',
+    marginTop: 4,
   },
   abas: {
     flexDirection: 'row',

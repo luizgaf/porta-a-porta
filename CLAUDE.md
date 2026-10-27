@@ -59,7 +59,7 @@ Produto.imagem_url — foto do produto guardada no servidor (pasta backend/uploa
 - **RN03**: Preço congelado no `ItemPedido.precoUnitario` no momento do pedido
 - **RN04**: Transição de status do pedido validada (máquina de estados)
 - **RN05**: Auto-quarentena de produto com 3+ denúncias distintas
-- **Quarentena**: anúncio em quarentena só aparece para o síndico e para o vendedor dono, com `produto.quarentena = { motivo, porSindico, data }` (última decisão do síndico na auditoria ou suspensão automática). Só o síndico tira da quarentena; para aplicar ou manter, o motivo é obrigatório e vai no aviso ao vendedor
+- **Quarentena**: anúncio em quarentena só aparece para o síndico e para o vendedor dono, com `produto.quarentena = { motivo, porSindico, data, denuncias }` (motivo da última decisão do síndico ou "Muitas denúncias: produto sob análise do síndico." na suspensão automática; `denuncias` = motivos das denúncias, sem identificação). Só o síndico tira da quarentena; para colocar um anúncio ativo em quarentena o motivo é obrigatório, para manter um que já está em quarentena é opcional
 - **Multitenancy**: `condominio_id` em todas as entidades + isolamento via token JWT
 
 ---
@@ -258,9 +258,9 @@ npm run lint         # ESLint
 
 ## Contas de Teste (Seed)
 - **Síndico 1**: `sindico1@pap.com` / `sindico123`
-- **Comprador**: `comprador1@pap.com` / `comprador123`
-- **Vendedor**: `vendedor1@pap.com` / `vendedor123` (único com produtos no seed)
-- **Compradores e vendedores 2-10**: `compradorN@pap.com` / `comprador123` e `vendedorN@pap.com` / `vendedor123`, um de cada no condomínio N
+- **Compradores do condomínio 1**: `comprador1@pap.com` (Apto 101) e `comprador2@pap.com` (Apto 102) / `comprador123`
+- **Vendedor**: `vendedor1@pap.com` / `vendedor123` (Maria Vendedora, 15 produtos; o "Café da Manhã Completo" começa em quarentena com 3 denúncias)
+- **Compradores 3-10 e vendedores 2-10**: `compradorN@pap.com` / `comprador123` e `vendedorN@pap.com` / `vendedor123`, no condomínio N; cada vendedorN tem 1 produto copiado da Maria
 - **Síndicos 2-10**: `sindico2@pap.com` … `sindico10@pap.com` / `sindico123`
 - 10 condomínios seed-cond-1 … seed-cond-10
 
