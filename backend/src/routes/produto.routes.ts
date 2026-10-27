@@ -11,6 +11,7 @@ import {
   removerImagem,
   lerArquivoEnviado,
   LIMITE_CORPO_UPLOAD,
+  tipoDeclaradoAceitavel,
 } from '../services/imagens';
 import { unidadesNoCondominio } from '../services/unidades';
 import { motivosDeQuarentena } from '../services/quarentena';
@@ -325,7 +326,7 @@ router.put(
     }
     const extensao = extensaoPelaAssinatura(arquivo);
 
-    if (!TIPOS_DE_IMAGEM.includes(tipo) || !extensao) {
+    if (!tipoDeclaradoAceitavel(tipo) || !extensao) {
       throw new AppError(415, 'Envie uma imagem JPEG, PNG ou WebP', 'FORMATO_INVALIDO');
     }
 

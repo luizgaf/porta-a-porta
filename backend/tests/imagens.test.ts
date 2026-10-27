@@ -51,6 +51,19 @@ describe('Foto do produto', () => {
     expect(fs.readFileSync(gravado).equals(PNG)).toBe(true);
   });
 
+  test('TU53 - JPEG informado como "image/jpg" ou sem tipo pelo aparelho é aceito pelo conteúdo', async () => {
+    const token = entrarComo(vendedor);
+    prismaMock.produto.findFirst.mockResolvedValue(produtoDoVendedor);
+    prismaMock.produto.update.mockImplementation(async ({ data }) => ({ ...produtoDoVendedor, ...data }));
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46]);
+
+    for (const tipo of ['image/jpg', 'application/octet-stream']) {
+      const { status, corpo } = await enviarArquivo(`/api/produtos/${PRODUTO_1}/imagem`, token, jpeg, tipo);
+      expect(status).toBe(200);
+      expect(corpo.produto.imagemUrl).toMatch(/\.jpg$/);
+    }
+  });
+
   test('TU28 - arquivo que não é imagem ou maior que 5 MB é recusado (RNF05)', async () => {
     const token = entrarComo(vendedor);
     prismaMock.produto.findFirst.mockResolvedValue(produtoDoVendedor);
