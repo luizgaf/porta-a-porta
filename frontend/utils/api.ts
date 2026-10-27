@@ -118,20 +118,37 @@ class ApiClient {
     formulario.append('foto', { uri, name: `foto.${extensao}`, type: tipo } as unknown as Blob);
 
     const token = await AsyncStorage.getItem(TOKEN_KEY);
-    // Sem Content-Type manual: o fetch monta o cabeçalho com o boundary do multipart
-    const resposta = await fetch(`${API_BASE_URL}${caminho}`, {
-      method: 'PUT',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: formulario,
+
+    // XMLHttpRequest, e não fetch: no Expo, o fetch global não aceita a parte { uri, name, type } do
+    // FormData ("Unsupported FormDataPart implementation"); o XMLHttpRequest usa a rede nativa do
+    // React Native, que lê o arquivo pela URI e monta o multipart com o boundary sozinho.
+    return new Promise<T>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', `${API_BASE_URL}${caminho}`);
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.timeout = 60000;
+
+      const falhar = (mensagem: string, status = 0, codigo?: string) => {
+        const err = new Error(mensagem) as Error & { code?: string; statusCode: number };
+        err.code = codigo;
+        err.statusCode = status;
+        reject(err);
+      };
+
+      xhr.onload = () => {
+        let corpo: { error?: string; code?: string } = {};
+        try {
+          corpo = JSON.parse(xhr.responseText || '{}');
+        } catch {
+          // resposta sem JSON: fica o corpo vazio
+        }
+        if (xhr.status >= 200 && xhr.status < 300) resolve(corpo as T);
+        else falhar(corpo.error || 'Não foi possível enviar a foto', xhr.status, corpo.code);
+      };
+      xhr.onerror = () => falhar('Sem conexão com o servidor para enviar a foto');
+      xhr.ontimeout = () => falhar('O envio da foto demorou demais. Tente de novo.');
+      xhr.send(formulario);
     });
-    const corpo = await resposta.json().catch(() => ({}));
-    if (!resposta.ok) {
-      const err = new Error(corpo.error || 'Não foi possível enviar a foto') as Error & { code?: string; statusCode: number };
-      err.code = corpo.code;
-      err.statusCode = resposta.status;
-      throw err;
-    }
-    return corpo as T;
   }
 
   async uploadImagemProduto<T>(produtoId: string, uri: string, tipo: string) {
