@@ -57,6 +57,23 @@ describe('Produtos', () => {
     expect(prismaMock.produto.update).not.toHaveBeenCalled();
   });
 
+  test('TU41 - vendedor não consegue reativar nem pausar o próprio anúncio em quarentena (RN02)', async () => {
+    const token = entrarComo(vendedor);
+    prismaMock.produto.findFirst.mockResolvedValue({
+      id: PRODUTO_1,
+      condominioId: CONDOMINIO_A,
+      vendedorId: vendedor.id,
+      status: 'QUARENTENA',
+    });
+
+    for (const novo of ['ATIVO', 'PAUSADO']) {
+      const { status, corpo } = await chamar('PATCH', `/api/produtos/${PRODUTO_1}/status`, token, { status: novo });
+      expect(status).toBe(403);
+      expect(corpo.code).toBe('PRODUTO_EM_QUARENTENA');
+    }
+    expect(prismaMock.produto.update).not.toHaveBeenCalled();
+  });
+
   test('TU17 - usuário não consegue consultar produto de outro condomínio (RNF02)', async () => {
     const token = entrarComo(comprador);
     // O produto existe no condomínio B; a busca restrita ao condomínio A não o encontra

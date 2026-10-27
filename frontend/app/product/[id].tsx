@@ -224,7 +224,17 @@ export default function ProductDetailScreen() {
 
         {/* Actions */}
         <View style={styles.actions}>
-          {canManage ? (
+          {canManage && produto.status === 'QUARENTENA' ? (
+            <>
+              <View style={styles.unavailable}>
+                <Ionicons name="shield-outline" size={20} color="#DC3545" />
+                <Text style={styles.unavailableText}>
+                  Anúncio suspenso após denúncias. Só o síndico pode reativá-lo, pelo painel de moderação.
+                </Text>
+              </View>
+              <Button title="Excluir" onPress={handleDelete} variant="danger" fullWidth style={styles.actionButton} />
+            </>
+          ) : canManage && produto.status !== 'EXCLUIDO' ? (
             <>
               <Button
                 title={produto.status === 'ATIVO' ? 'Pausar' : 'Ativar'}
@@ -254,7 +264,7 @@ export default function ProductDetailScreen() {
             <View style={styles.unavailable}>
               <Ionicons name="information-outline" size={20} color="#FFC107" />
               <Text style={styles.unavailableText}>
-                {STATUS_LABELS[produto.status] === 'QUARENTENA'
+                {produto.status === 'QUARENTENA'
                   ? 'Produto em quarentena aguardando moderação'
                   : 'Produto indisponível no momento'}
               </Text>
@@ -298,8 +308,8 @@ export default function ProductDetailScreen() {
             </View>
 
             <View style={styles.modalFooter}>
-              <Button title="Cancelar" onPress={() => setShowDenunciaModal(false)} variant="outline" fullWidth />
-              <Button title="Enviar Denúncia" onPress={handleDenuncia} loading={denunciaLoading} variant="danger" fullWidth />
+              <Button title="Cancelar" onPress={() => setShowDenunciaModal(false)} variant="outline" style={styles.botaoMetade} />
+              <Button title="Enviar Denúncia" onPress={handleDenuncia} loading={denunciaLoading} variant="danger" style={styles.botaoMetade} />
             </View>
           </View>
         </TouchableOpacity>
@@ -453,6 +463,10 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: 12,
+  },
+  // Dois botões lado a lado, cada um com metade da largura
+  botaoMetade: {
+    flex: 1,
   },
   actionButton: {},
   unavailable: {

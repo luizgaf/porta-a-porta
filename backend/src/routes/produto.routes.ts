@@ -242,6 +242,15 @@ router.patch('/:id/status', authMiddleware, asyncHandler(async (req: AuthRequest
     throw new AppError(403, 'Não autorizado a alterar este produto', 'FORBIDDEN');
   }
 
+  // RN02: anúncio em quarentena só sai dela por decisão do síndico; o vendedor não reativa nem pausa.
+  // Anúncio excluído também não volta pela troca de status.
+  if (produto.status === 'QUARENTENA' && req.user!.tipo !== 'SINDICO') {
+    throw new AppError(403, 'Anúncio em quarentena: só o síndico pode reativá-lo', 'PRODUTO_EM_QUARENTENA');
+  }
+  if (produto.status === 'EXCLUIDO' && req.user!.tipo !== 'SINDICO') {
+    throw new AppError(403, 'Anúncio excluído não pode ser reativado', 'PRODUTO_EXCLUIDO');
+  }
+
   // RN01: Se ativando, verificar limite de 15 produtos ATIVOS
   if (status === 'ATIVO' && produto.status !== 'ATIVO') {
     const ativosCount = await prisma.produto.count({
