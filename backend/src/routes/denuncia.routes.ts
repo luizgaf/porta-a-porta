@@ -20,7 +20,7 @@ const querySchema = z.object({
 
 const updateDenunciaStatusSchema = z.object({
   acao: z.enum(['QUARENTENA', 'RESTAURAR']),
-  justificativa: z.string().optional(),
+  justificativa: z.string().trim().max(500).optional(),
 });
 
 // RN02: a denúncia é exibida sem nenhum dado que identifique o denunciante, inclusive para o síndico.
@@ -195,6 +195,11 @@ router.patch('/:produtoId/quarentena', authMiddleware, requireRole('SINDICO'), a
   const { produtoId } = req.params;
   const { acao, justificativa } = updateDenunciaStatusSchema.parse(req.body);
 
+  // O vendedor vê o motivo da quarentena, então o síndico precisa escrevê-lo
+  if (acao === 'QUARENTENA' && (!justificativa || justificativa.length < 5)) {
+    throw new AppError(400, 'Informe o motivo da quarentena (mínimo 5 caracteres); o vendedor vai ler este texto', 'VALIDATION_ERROR');
+  }
+
   const produto = await prisma.produto.findFirst({
     where: { id: produtoId, condominioId: req.user!.condominioId },
   });
@@ -236,7 +241,7 @@ router.patch('/:produtoId/quarentena', authMiddleware, requireRole('SINDICO'), a
     usuarioId: produto.vendedorId,
     tipo: acao === 'QUARENTENA' ? 'ANUNCIO_QUARENTENA' : 'ANUNCIO_RESTAURADO',
     mensagem: acao === 'QUARENTENA'
-      ? `O síndico manteve seu anúncio "${produto.nome}" suspenso.`
+      ? `O síndico ${produto.status === 'QUARENTENA' ? 'manteve' : 'colocou'} seu anúncio "${produto.nome}" em quarentena. Motivo: ${justificativa}`
       : `Seu anúncio "${produto.nome}" foi restaurado pelo síndico e voltou para a vitrine.`,
     entidadeTipo: 'PRODUTO',
     entidadeId: produto.id,

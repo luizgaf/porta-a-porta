@@ -59,6 +59,7 @@ Produto.imagem_url — foto do produto guardada no servidor (pasta backend/uploa
 - **RN03**: Preço congelado no `ItemPedido.precoUnitario` no momento do pedido
 - **RN04**: Transição de status do pedido validada (máquina de estados)
 - **RN05**: Auto-quarentena de produto com 3+ denúncias distintas
+- **Quarentena**: anúncio em quarentena só aparece para o síndico e para o vendedor dono, com `produto.quarentena = { motivo, porSindico, data }` (última decisão do síndico na auditoria ou suspensão automática). Só o síndico tira da quarentena; para aplicar ou manter, o motivo é obrigatório e vai no aviso ao vendedor
 - **Multitenancy**: `condominio_id` em todas as entidades + isolamento via token JWT
 
 ---

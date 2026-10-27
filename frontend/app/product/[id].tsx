@@ -229,7 +229,8 @@ export default function ProductDetailScreen() {
               <View style={styles.unavailable}>
                 <Ionicons name="shield-outline" size={20} color="#DC3545" />
                 <Text style={styles.unavailableText}>
-                  Anúncio suspenso após denúncias. Só o síndico pode reativá-lo, pelo painel de moderação.
+                  {produto.quarentena?.porSindico ? 'Suspenso pelo síndico. Motivo: ' : ''}
+                  {produto.quarentena?.motivo || 'Anúncio suspenso após denúncias.'} Só o síndico pode reativá-lo.
                 </Text>
               </View>
               <Button title="Excluir" onPress={handleDelete} variant="danger" fullWidth style={styles.actionButton} />
@@ -265,7 +266,7 @@ export default function ProductDetailScreen() {
               <Ionicons name="information-outline" size={20} color="#FFC107" />
               <Text style={styles.unavailableText}>
                 {produto.status === 'QUARENTENA'
-                  ? 'Produto em quarentena aguardando moderação'
+                  ? `Em quarentena. ${produto.quarentena?.motivo || 'Aguardando moderação.'}`
                   : 'Produto indisponível no momento'}
               </Text>
             </View>

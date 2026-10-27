@@ -158,7 +158,8 @@ export default function SellerScreen() {
         <View style={styles.avisoQuarentena}>
           <Ionicons name="shield-outline" size={16} color="#DC3545" />
           <Text style={styles.avisoQuarentenaTexto}>
-            Suspenso após denúncias. Só o síndico pode reativar.
+            {item.quarentena?.porSindico ? 'Suspenso pelo síndico. ' : ''}
+            {item.quarentena?.motivo || 'Suspenso após denúncias.'} Só o síndico pode reativar.
           </Text>
         </View>
       )}
