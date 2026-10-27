@@ -10,6 +10,7 @@ import {
   salvarImagem,
   removerImagem,
 } from '../services/imagens';
+import { unidadesNoCondominio } from '../services/unidades';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -109,6 +110,8 @@ router.get('/', authMiddleware, asyncHandler(async (req: AuthRequest, res: Respo
     prisma.produto.count({ where }),
   ]);
 
+  await unidadesNoCondominio(prisma, req.user!.condominioId, produtos.map((p) => p.vendedor));
+
   res.json({
     produtos,
     paginacao: {
@@ -177,6 +180,8 @@ router.get('/:id', authMiddleware, asyncHandler(async (req: AuthRequest, res: Re
   if (['QUARENTENA', 'EXCLUIDO'].includes(produto.status) && req.user!.tipo !== 'SINDICO') {
     throw new AppError(404, 'Produto não encontrado', 'PRODUTO_NOT_FOUND');
   }
+
+  await unidadesNoCondominio(prisma, req.user!.condominioId, [produto.vendedor]);
 
   res.json({ produto });
 }));

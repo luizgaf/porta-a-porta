@@ -14,7 +14,7 @@ const icone = (ativo: NomeIcone, inativo: NomeIcone) =>
   );
 
 export default function TabsLayout() {
-  const { isVendedor, isSindico, isLoading, isAuthenticated } = useAuth();
+  const { usuario, isVendedor, isSindico, isLoading, isAuthenticated } = useAuth();
   const itensNoCarrinho = useCartStore((estado: { totalItems: number }) => estado.totalItems);
   // Espaço dos botões de navegação do Android (e da barra do iPhone), para a barra de abas não ficar atrás deles
   const insets = useSafeAreaInsets();
@@ -29,6 +29,8 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      // Ao trocar de condomínio, as abas são montadas de novo e recarregam os dados do condomínio novo
+      key={usuario?.condominioId}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.accent,
@@ -53,7 +55,8 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="home" options={{ title: 'Início', tabBarIcon: icone('home', 'home-outline') }} />
-      <Tabs.Screen name="search" options={{ title: 'Buscar', tabBarIcon: icone('search', 'search-outline') }} />
+      {/* A busca abre pelo campo no topo da vitrine; fora da barra, para caber o painel de vendas */}
+      <Tabs.Screen name="search" options={{ href: null, title: 'Buscar' }} />
       <Tabs.Screen
         name="cart"
         options={{
@@ -63,6 +66,10 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen name="orders" options={{ title: 'Pedidos', tabBarIcon: icone('receipt', 'receipt-outline') }} />
+      <Tabs.Screen
+        name="dashboard"
+        options={{ href: isVendedor ? undefined : null, title: 'Painel', tabBarIcon: icone('stats-chart', 'stats-chart-outline') }}
+      />
       <Tabs.Screen
         name="seller"
         options={{ href: isVendedor ? undefined : null, title: 'Vender', tabBarIcon: icone('storefront', 'storefront-outline') }}

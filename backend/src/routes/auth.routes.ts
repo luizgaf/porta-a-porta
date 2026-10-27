@@ -1,9 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import { asyncHandler, AppError } from '../middleware/errorHandler';
+import { authMiddleware, AuthRequest } from '../middleware/auth';
+import { gerarToken } from '../services/sessao';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -80,15 +81,11 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
   });
 
   // Gera token JWT
-  const token = jwt.sign(
-    { id: usuario.id, condominioId: usuario.condominioId, tipo: usuario.tipo },
-    process.env.JWT_SECRET!,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } as jwt.SignOptions
-  );
+  const token = gerarToken(usuario.id, usuario.condominioId, usuario.tipo);
 
   res.status(201).json({
     message: 'Usuário criado com sucesso',
-    usuario,
+    usuario: { ...usuario, condominioOrigemId: usuario.condominioId, condominioNome: condominio.nome },
     token,
   });
 }));
@@ -99,6 +96,7 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
 
   const usuario = await prisma.usuario.findUnique({
     where: { email: data.email },
+    include: { condominio: { select: { nome: true } } },
   });
 
   if (!usuario) {
@@ -111,11 +109,7 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
     throw new AppError(401, 'Credenciais inválidas', 'INVALID_CREDENTIALS');
   }
 
-  const token = jwt.sign(
-    { id: usuario.id, condominioId: usuario.condominioId, tipo: usuario.tipo },
-    process.env.JWT_SECRET!,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } as jwt.SignOptions
-  );
+  const token = gerarToken(usuario.id, usuario.condominioId, usuario.tipo);
 
   res.json({
     message: 'Login realizado com sucesso',
@@ -126,44 +120,21 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
       email: usuario.email,
       unidade: usuario.unidade,
       tipo: usuario.tipo,
+      condominioOrigemId: usuario.condominioId,
+      condominioNome: usuario.condominio?.nome,
     },
     token,
   });
 }));
 
-// GET /api/auth/me
-router.get('/me', asyncHandler(async (req: Request, res: Response) => {
-  const authHeader = req.headers.authorization;
+// GET /api/auth/me - Perfil no condomínio ativo (unidade e perfil do vínculo, se for outro condomínio)
+router.get('/me', authMiddleware, asyncHandler(async (req: AuthRequest, res: Response) => {
+  const [usuario, condominio] = await Promise.all([
+    prisma.usuario.findUnique({ where: { id: req.user!.id }, select: { criadoEm: true } }),
+    prisma.condominio.findUnique({ where: { id: req.user!.condominioId }, select: { nome: true } }),
+  ]);
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new AppError(401, 'Token não fornecido', 'UNAUTHORIZED');
-  }
-
-  const token = authHeader.split(' ')[1];
-  const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
-    id: string;
-    condominioId: string;
-    tipo: TipoUsuario;
-  };
-
-  const usuario = await prisma.usuario.findUnique({
-    where: { id: decoded.id },
-    select: {
-      id: true,
-      condominioId: true,
-      nome: true,
-      email: true,
-      unidade: true,
-      tipo: true,
-      criadoEm: true,
-    },
-  });
-
-  if (!usuario) {
-    throw new AppError(404, 'Usuário não encontrado', 'USER_NOT_FOUND');
-  }
-
-  res.json({ usuario });
+  res.json({ usuario: { ...req.user, criadoEm: usuario?.criadoEm, condominioNome: condominio?.nome } });
 }));
 
 export { router as authRoutes };

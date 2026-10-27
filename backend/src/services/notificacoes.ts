@@ -9,14 +9,17 @@ export type TipoNotificacao =
   | 'PEDIDO_CANCELADO'
   | 'ANUNCIO_QUARENTENA'
   | 'ANUNCIO_RESTAURADO'
-  | 'DENUNCIA_PARA_ANALISE';
+  | 'DENUNCIA_PARA_ANALISE'
+  | 'PEDIDO_VINCULO'
+  | 'VINCULO_APROVADO'
+  | 'VINCULO_RECUSADO';
 
 export interface NovaNotificacao {
   condominioId: string;
   usuarioId: string;
   tipo: TipoNotificacao;
   mensagem: string;
-  entidadeTipo?: 'PEDIDO' | 'PRODUTO';
+  entidadeTipo?: 'PEDIDO' | 'PRODUTO' | 'VINCULO';
   entidadeId?: string;
 }
 

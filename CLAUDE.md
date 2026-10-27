@@ -29,6 +29,7 @@ Denuncia (id, produto_id, denunciante_id, motivo) — UNIQUE(produto_id, denunci
 Avaliacao (id, pedido_id, comprador_id, nota, comentario, removida_por) — UNIQUE(pedido_id)
 LogAuditoria (id, sindico_id, acao, entidade_id, justificativa)
 Notificacao (id, condominio_id, usuario_id, tipo, mensagem, entidade_tipo, entidade_id, lida)
+Vinculo (id, usuario_id, condominio_id, unidade, tipo_solicitado, tipo, status, decidido_por, decidido_em) — UNIQUE(usuario_id, condominio_id)
 Produto.imagem_url — foto do produto guardada no servidor (pasta backend/uploads, servida em /uploads)
 ```
 
@@ -38,6 +39,13 @@ Produto.imagem_url — foto do produto guardada no servidor (pasta backend/uploa
 - SINDICO extends VENDEDOR: também modera (denúncias, quarentena, avaliações, auditoria)
 - `requireRole('COMPRADOR')` aceita os três perfis. Ninguém compra o próprio produto (400 `PRODUTO_PROPRIO`)
 - Pedidos: cada usuário vê os pedidos em que é comprador ou vendedor; quem vende conduz o status e quem comprou só cancela
+
+### Vários condomínios (vínculos)
+- `Usuario.condominioId` é o condomínio de origem (cadastro). O token traz o **condomínio ativo**
+- Para participar de outro condomínio, o usuário pede (unidade + se quer vender); o síndico de lá aprova definindo o perfil (COMPRADOR ou VENDEDOR) ou recusa com motivo. Decisões vão para LogAuditoria (`APROVAR_VINCULO`/`RECUSAR_VINCULO`)
+- No authMiddleware, se o condomínio ativo não é o de origem, valem a unidade e o perfil do vínculo aprovado; sem vínculo aprovado, 403 `VINCULO_INVALIDO` (RNF02)
+- Todas as rotas continuam usando `req.user.condominioId` (ativo). RN01 (15 ativos) vale por condomínio
+- Anúncios e pedidos mostram a unidade do vínculo de quem é de outro condomínio (`services/unidades.ts`)
 
 ### Enums
 - `TipoUsuario`: COMPRADOR, VENDEDOR, SINDICO
@@ -104,6 +112,16 @@ npm run prisma:studio
 - `DELETE /api/avaliacoes/:pedidoId` — Remover (SINDICO), corpo `{ justificativa }` obrigatório; grava LogAuditoria `REMOVER_AVALIACAO`
 - Respostas de avaliação nunca identificam o avaliador; o vendedor não recebe nem o pedidoId (RN02)
 
+### Vínculos com outros condomínios
+- `GET /api/vinculos` — Condomínios do usuário (origem + vínculos) e o ativo
+- `POST /api/vinculos` — Pedir para participar `{ condominioId, unidade, querVender }` (avisa os síndicos de lá)
+- `POST /api/vinculos/trocar` — `{ condominioId }` → token novo com o condomínio ativo trocado
+- `GET /api/vinculos/pendentes` — Pedidos pendentes do condomínio (SINDICO)
+- `PATCH /api/vinculos/:id` — `{ aprovar, tipo?, justificativa? }` (SINDICO; motivo obrigatório na recusa)
+
+### Dashboard de vendas
+- `GET /api/pedidos/dashboard` — VENDEDOR: total vendido (entregues), em andamento, pedidos por status, mais vendidos, últimos 6 meses e últimos pedidos, no condomínio ativo, somando só os itens do vendedor
+
 ### Auditoria (Task 7)
 - `POST /api/auditoria` — Registrar log (SINDICO)
 - `GET /api/auditoria` — Listar logs (SINDICO)
@@ -115,7 +133,7 @@ npm run prisma:studio
 - `GET /api/notificacoes` — Avisos do usuário logado + `naoLidas` (query `apenasNaoLidas=true`)
 - `PATCH /api/notificacoes/:id/lida` — Marca um aviso como lido (só os próprios)
 - `PATCH /api/notificacoes/lidas` — Marca todos como lidos
-- Gerados em: novo pedido (vendedor), mudança de status (comprador; vendedor se o comprador cancelar), quarentena automática (síndico e vendedor), decisão do síndico na quarentena (vendedor)
+- Gerados em: novo pedido (vendedor), mudança de status (comprador; vendedor se o comprador cancelar), quarentena automática (síndico e vendedor), decisão do síndico na quarentena (vendedor), pedido de participação (síndicos do condomínio pedido) e decisão sobre ele (no condomínio de origem do usuário)
 
 ---
 
@@ -195,11 +213,13 @@ frontend/
 | `/(auth)/role-selection` | Escolher comprador/vendedor | Público |
 | `/(auth)/community-selection` | Selecionar condomínio | Público |
 | `/(tabs)/home` | Vitrine produtos | Autenticado |
-| `/(tabs)/search` | Busca avançada | Autenticado |
+| `/(tabs)/search` | Busca (aberta pelo campo da vitrine; fora da barra de abas) | Autenticado |
 | `/(tabs)/cart` | Carrinho + checkout | Autenticado |
 | `/(tabs)/orders` | Meus pedidos | Autenticado |
 | `/(tabs)/profile` | Perfil + configurações | Autenticado |
-| `/(tabs)/seller` | Painel vendedor | VENDEDOR/SINDICO |
+| `/(tabs)/dashboard` | Painel de vendas (dashboard) | VENDEDOR/SINDICO |
+| `/(tabs)/seller` | Anúncios do vendedor | VENDEDOR/SINDICO |
+| `/condominios` | Trocar de condomínio / pedir para participar de outro | Autenticado |
 | `/(tabs)/moderator` | Painel moderação | SINDICO |
 | `/product/[id]` | Detalhe produto | Autenticado |
 | `/product/new` | Criar produto | VENDEDOR/SINDICO |

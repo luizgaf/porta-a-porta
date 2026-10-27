@@ -33,12 +33,21 @@ router.get('/me', authMiddleware, asyncHandler(async (req: AuthRequest, res: Res
 // PUT /api/usuarios/me - Atualizar próprio perfil
 router.put('/me', authMiddleware, asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = updateUsuarioSchema.parse(req.body);
+  const emOutroCondominio = req.user!.condominioId !== req.user!.condominioOrigemId;
 
-  const usuario = await prisma.usuario.update({
+  // Em outro condomínio, a unidade é a do vínculo com aquele condomínio
+  if (emOutroCondominio && data.unidade) {
+    await prisma.vinculo.update({
+      where: { usuarioId_condominioId: { usuarioId: req.user!.id, condominioId: req.user!.condominioId } },
+      data: { unidade: data.unidade },
+    });
+  }
+
+  const atualizado = await prisma.usuario.update({
     where: { id: req.user!.id },
     data: {
       nome: data.nome,
-      unidade: data.unidade,
+      unidade: emOutroCondominio ? undefined : data.unidade,
     },
     select: {
       id: true,
@@ -50,6 +59,11 @@ router.put('/me', authMiddleware, asyncHandler(async (req: AuthRequest, res: Res
       criadoEm: true,
     },
   });
+
+  // Devolve o perfil no condomínio ativo
+  const usuario = emOutroCondominio
+    ? { ...atualizado, condominioId: req.user!.condominioId, tipo: req.user!.tipo, unidade: data.unidade ?? req.user!.unidade }
+    : atualizado;
 
   res.json({ usuario });
 }));

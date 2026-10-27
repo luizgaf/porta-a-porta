@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, ScrollView, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,8 +21,8 @@ const saudacao = () => {
 
 function HomeScreen() {
   const router = useRouter();
-  const { usuario, isVendedor } = useAuth();
-  const { getProdutos, getNotificacoes } = useApi();
+  const { usuario, isVendedor, updateUsuario } = useAuth();
+  const { getProdutos, getNotificacoes, getMe } = useApi();
   const { width } = useWindowDimensions();
 
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -44,6 +44,17 @@ function HomeScreen() {
 
   // Atualiza a contagem de avisos sempre que a vitrine volta a ficar visível
   useFocusEffect(atualizarAvisos);
+
+  // Sessões antigas não guardavam o nome do condomínio: busca uma vez
+  const buscouNome = useRef(false);
+  useEffect(() => {
+    if (usuario && !usuario.condominioNome && !buscouNome.current) {
+      buscouNome.current = true;
+      getMe()
+        .then((resposta) => updateUsuario({ condominioNome: resposta.usuario.condominioNome }))
+        .catch(() => undefined);
+    }
+  }, [usuario, getMe, updateUsuario]);
 
   const carregarProdutos = useCallback(async (paginaAtual = 1) => {
     if (paginaAtual === 1) setLoading(true);
@@ -85,12 +96,22 @@ function HomeScreen() {
   const cabecalho = (
     <View>
       <View style={styles.topo}>
-        <View style={styles.saudacao}>
-          <Text style={styles.saudacaoTexto}>{saudacao()},</Text>
-          <Text style={styles.nome} numberOfLines={1}>
-            {usuario?.nome?.split(' ')[0] || 'vizinho'}
-          </Text>
-        </View>
+        <TouchableOpacity
+          style={styles.condominio}
+          onPress={() => router.push('/condominios')}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={`Condomínio ${usuario?.condominioNome || ''}. Trocar ou adicionar condomínio`}
+        >
+          <Ionicons name="business" size={16} color={colors.accent} />
+          <View style={styles.condominioTexto}>
+            <Text style={styles.condominioRotulo}>Vendo produtos de</Text>
+            <Text style={styles.condominioNome} numberOfLines={1}>
+              {usuario?.condominioNome || 'Seu condomínio'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-down" size={16} color={colors.primary} />
+        </TouchableOpacity>
         <TouchableOpacity
           style={styles.sino}
           onPress={() => router.push('/notifications')}
@@ -104,6 +125,13 @@ function HomeScreen() {
             </View>
           )}
         </TouchableOpacity>
+      </View>
+
+      <View style={styles.saudacao}>
+        <Text style={styles.saudacaoTexto}>{saudacao()},</Text>
+        <Text style={styles.nome} numberOfLines={1}>
+          {usuario?.nome?.split(' ')[0] || 'vizinho'}
+        </Text>
       </View>
 
       <TouchableOpacity style={styles.busca} onPress={() => router.push('/(tabs)/search')} activeOpacity={0.8}>
@@ -202,8 +230,36 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.md,
   },
-  saudacao: {
+  condominio: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginRight: spacing.md,
+    paddingHorizontal: spacing.md,
+    height: 44,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  condominioTexto: {
+    flex: 1,
+  },
+  condominioRotulo: {
+    fontFamily: typography.labelSmall.fontFamily,
+    fontSize: 10,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    color: colors.textMuted,
+  },
+  condominioNome: {
+    fontFamily: typography.labelMedium.fontFamily,
+    fontSize: 14,
+    color: colors.primary,
+  },
+  saudacao: {
+    marginBottom: spacing.md,
   },
   saudacaoTexto: {
     fontFamily: typography.bodyMedium.fontFamily,

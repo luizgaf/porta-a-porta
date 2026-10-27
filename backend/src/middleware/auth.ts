@@ -15,6 +15,9 @@ export interface AuthRequest extends Request {
     email: string;
     unidade: string;
     tipo: TipoUsuario;
+    // Condomínio do cadastro. O condominioId acima é o condomínio ativo, que pode ser
+    // outro em que o usuário tem vínculo aprovado (ver rotas de vínculos)
+    condominioOrigemId: string;
   };
 }
 
@@ -66,7 +69,32 @@ export const authMiddleware = async (
       });
     }
 
-    req.user = usuario;
+    // Condomínio de origem: perfil e unidade do próprio cadastro
+    if (!decoded.condominioId || decoded.condominioId === usuario.condominioId) {
+      req.user = { ...usuario, condominioOrigemId: usuario.condominioId };
+      return next();
+    }
+
+    // Outro condomínio: vale o vínculo aprovado pelo síndico de lá, com a unidade e o perfil dele
+    const vinculo = await prisma.vinculo.findUnique({
+      where: { usuarioId_condominioId: { usuarioId: usuario.id, condominioId: decoded.condominioId } },
+      select: { status: true, unidade: true, tipo: true },
+    });
+
+    if (!vinculo || vinculo.status !== 'APROVADO' || !vinculo.tipo) {
+      return res.status(403).json({
+        error: 'Você não tem acesso a este condomínio',
+        code: 'VINCULO_INVALIDO',
+      });
+    }
+
+    req.user = {
+      ...usuario,
+      condominioId: decoded.condominioId,
+      unidade: vinculo.unidade,
+      tipo: vinculo.tipo,
+      condominioOrigemId: usuario.condominioId,
+    };
     next();
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {

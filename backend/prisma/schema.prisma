@@ -16,6 +16,7 @@ model Condominio {
   pedidos      Pedido[]
   produtos     Produto[]
   usuarios     Usuario[]
+  vinculos     Vinculo[]
 
   @@map("condominios")
 }
@@ -37,6 +38,7 @@ model Usuario {
   notificacoes  Notificacao[]
   pedidos       Pedido[]       @relation("CompradorPedidos")
   produtos      Produto[]      @relation("VendedorProdutos")
+  vinculos      Vinculo[]
   condominio    Condominio     @relation(fields: [condominioId], references: [id], onDelete: Cascade)
 
   @@unique([condominioId, cpf])
@@ -168,6 +170,35 @@ model Notificacao {
   @@index([usuarioId, lida])
   @@index([condominioId])
   @@map("notificacoes")
+}
+
+// Participação do usuário em um condomínio além do seu condomínio de origem (o do cadastro).
+// O usuário pede a entrada informando a unidade; o síndico daquele condomínio aprova ou recusa
+// e define o perfil (COMPRADOR ou VENDEDOR). Só com o vínculo aprovado ele vê aquele condomínio (RNF02).
+model Vinculo {
+  id             String        @id @default(uuid())
+  usuarioId      String        @map("usuario_id")
+  condominioId   String        @map("condominio_id")
+  unidade        String
+  tipoSolicitado TipoUsuario   @map("tipo_solicitado")
+  tipo           TipoUsuario?
+  status         StatusVinculo @default(PENDENTE)
+  decididoPor    String?       @map("decidido_por")
+  decididoEm     DateTime?     @map("decidido_em")
+  criadoEm       DateTime      @default(now()) @map("criado_em")
+  atualizadoEm   DateTime      @updatedAt @map("atualizado_em")
+  usuario        Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  condominio     Condominio    @relation(fields: [condominioId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, condominioId])
+  @@index([condominioId, status])
+  @@map("vinculos")
+}
+
+enum StatusVinculo {
+  PENDENTE
+  APROVADO
+  RECUSADO
 }
 
 enum TipoUsuario {
