@@ -9,6 +9,11 @@ export const TAMANHO_MAXIMO_IMAGEM = 5 * 1024 * 1024;
 export const TIPOS_DE_IMAGEM = ['image/jpeg', 'image/png', 'image/webp'];
 export const PREFIXO_URL_IMAGENS = '/uploads';
 
+// O tipo informado pelo aparelho varia ("image/jpg", "application/octet-stream" ou vazio em alguns
+// Android); o que decide é o conteúdo do arquivo. Só recusamos de cara um tipo declarado que não é imagem.
+export const tipoDeclaradoAceitavel = (tipo: string) =>
+  !tipo || tipo.startsWith('image/') || tipo === 'application/octet-stream';
+
 export const pastaDeImagens = () =>
   path.resolve(process.env.UPLOAD_DIR || path.join(__dirname, '..', '..', 'uploads'));
 
