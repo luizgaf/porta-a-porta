@@ -15,7 +15,7 @@ export default function HelpScreen() {
     },
     {
       q: 'Meu produto sumiu da vitrine. O que aconteceu?',
-      a: 'Anúncios com denúncias de 3 moradores diferentes entram em quarentena e somem da vitrine dos outros moradores. Você continua vendo o anúncio na aba "Vender", com o motivo. Só o síndico pode restaurá-lo.',
+      a: 'Anúncios com denúncias de 3 moradores diferentes entram em quarentena e somem da vitrine dos outros moradores. Você continua vendo o anúncio na aba "Vender", com o motivo informado pelo síndico; as denúncias em si ficam anônimas. Só o síndico pode restaurá-lo.',
     },
     {
       q: 'Como funciona a entrega?',
@@ -24,6 +24,10 @@ export default function HelpScreen() {
     {
       q: 'Posso cancelar um pedido?',
       a: 'Sim. Quem comprou e quem vende podem cancelar o pedido em qualquer etapa antes da entrega. Depois de entregue, não é mais possível cancelar.',
+    },
+    {
+      q: 'Como avalio uma compra?',
+      a: 'Depois que o pedido for entregue, abra o pedido e toque em "Avaliar" ao lado de cada produto: nota de 1 a 5 estrelas e, se quiser, um comentário. A avaliação aparece no anúncio sem o seu nome e não pode ser alterada depois.',
     },
     {
       q: 'Como funciona o limite de 15 produtos?',

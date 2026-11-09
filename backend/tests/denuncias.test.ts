@@ -1,6 +1,6 @@
 import { prismaMock } from './helpers/prismaMock';
 import { iniciarApi, encerrarApi, entrarComo, chamar } from './helpers/api';
-import { CONDOMINIO_A, PRODUTO_1, comprador, comprador2, comprador3, sindico, vendedor } from './helpers/dados';
+import { CONDOMINIO_A, PRODUTO_1, PRODUTO_2, comprador, comprador2, comprador3, sindico, vendedor } from './helpers/dados';
 
 beforeAll(iniciarApi);
 afterAll(encerrarApi);
@@ -85,5 +85,31 @@ describe('Denúncias', () => {
       expect(consulta.select).not.toHaveProperty('denunciante');
       expect(consulta.select).not.toHaveProperty('denuncianteId');
     }
+  });
+});
+
+describe('Fila de moderação por anúncio', () => {
+  test('TU56 - a fila agrupa as denúncias por anúncio, com quarentena primeiro e sem identificar quem denunciou (RN02)', async () => {
+    const token = entrarComo(sindico);
+    const ativo = { id: PRODUTO_2, nome: 'Brigadeiro', status: 'ATIVO', imagemUrl: null, vendedor: { id: vendedor.id, nome: vendedor.nome, unidade: vendedor.unidade } };
+    const suspenso = { ...ativo, id: PRODUTO_1, nome: 'Bolo de pote', status: 'QUARENTENA' };
+    const dia = (n: number) => new Date(2026, 10, n);
+    prismaMock.denuncia.findMany.mockResolvedValue([
+      { id: 'd1', produtoId: PRODUTO_2, motivo: 'Preço diferente', criadoEm: dia(9), produto: ativo },
+      { id: 'd2', produtoId: PRODUTO_1, motivo: 'Produto vencido', criadoEm: dia(8), produto: suspenso },
+      { id: 'd3', produtoId: PRODUTO_1, motivo: 'Foto enganosa', criadoEm: dia(7), produto: suspenso },
+      { id: 'd4', produtoId: PRODUTO_1, motivo: 'Veio faltando', criadoEm: dia(6), produto: suspenso },
+    ]);
+
+    const { status, corpo } = await chamar('GET', '/api/denuncias/produtos', token);
+
+    expect(status).toBe(200);
+    expect(corpo.produtos.map((p: { produto: { id: string } }) => p.produto.id)).toEqual([PRODUTO_1, PRODUTO_2]);
+    expect(corpo.produtos[0]).toEqual(expect.objectContaining({ totalDenuncias: 3, motivos: ['Produto vencido', 'Foto enganosa', 'Veio faltando'] }));
+    expect(corpo.resumo).toEqual({ emQuarentena: 1, naVitrine: 1, totalDenuncias: 4 });
+    const [consulta] = prismaMock.denuncia.findMany.mock.calls[0];
+    expect(consulta.select).not.toHaveProperty('denuncianteId');
+    expect(consulta.select).not.toHaveProperty('denunciante');
+    expect(consulta.where.produto).toEqual({ condominioId: CONDOMINIO_A, status: { not: 'EXCLUIDO' } });
   });
 });

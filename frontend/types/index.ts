@@ -89,10 +89,11 @@ export interface Produto {
   atualizadoEm: string;
   imagemUrl?: string | null;
   // Só vem para o síndico e para o vendedor dono, quando o anúncio está em quarentena
-  // denuncias: motivos escritos por quem denunciou, sem identificação (RN02)
-  quarentena?: { motivo: string; porSindico: boolean; data: string | null; denuncias: string[] };
-  media_avaliacoes?: number;
-  total_avaliacoes?: number;
+  // denuncias: motivos escritos por quem denunciou, sem identificação; só o síndico recebe (RN02)
+  quarentena?: { motivo: string; porSindico: boolean; data: string | null; denuncias?: string[] };
+  // Média (1 a 5) e quantidade de avaliações do produto, sem as removidas pelo síndico
+  mediaAvaliacoes?: number;
+  totalAvaliacoes?: number;
   vendedor?: {
     id: string;
     nome: string;
@@ -172,22 +173,28 @@ export interface Pedido {
     nome: string;
     unidade: string;
   };
-  avaliacao?: Avaliacao;
+  // Avaliações do comprador, uma por produto do pedido (só vêm para quem comprou)
+  avaliacoes?: Avaliacao[];
 }
 
+// Uma avaliação por produto do pedido. A identidade de quem avaliou não é exibida a ninguém (RN02);
+// pedidoId só vem para o síndico (moderação) e para o próprio comprador
 export interface Avaliacao {
   id: string;
-  pedidoId: string;
-  compradorId: string;
+  pedidoId?: string;
+  produtoId?: string;
   nota: number;
-  comentario?: string;
+  comentario?: string | null;
   removidaPor?: string | null;
   criadoEm: string;
-  // A identidade do avaliador não é exibida a ninguém (RN02); só o nome dos produtos avaliados
-  pedido?: {
-    id: string;
-    itens: Array<{ produto?: { id: string; nome: string; vendedorId: string } }>;
-  };
+  produto?: { id: string; nome: string; vendedorId?: string };
+}
+
+export interface AvaliacoesDoProduto {
+  media: number;
+  total: number;
+  distribuicao: Array<{ nota: number; total: number }>;
+  avaliacoes: Avaliacao[];
 }
 
 export interface Denuncia {
@@ -241,13 +248,34 @@ export interface LogAuditoria {
   sindicoId: string;
   acao: string;
   entidadeId: string;
-  justificativa?: string;
+  justificativa?: string | null;
   criadoEm: string;
+  // Nome do anúncio, usuário ou avaliação afetado (calculado pela API para o histórico)
+  entidadeNome?: string | null;
   sindico?: {
     id: string;
     nome: string;
     unidade: string;
   };
+}
+
+// Fila de moderação: um item por anúncio denunciado (sem identificar quem denunciou)
+export interface ProdutoDenunciado {
+  produto: {
+    id: string;
+    nome: string;
+    status: string;
+    imagemUrl?: string | null;
+    vendedor?: { id: string; nome: string; unidade: string };
+  };
+  totalDenuncias: number;
+  ultimaDenuncia: string;
+  motivos: string[];
+}
+
+export interface FilaDenuncias {
+  produtos: ProdutoDenunciado[];
+  resumo: { emQuarentena: number; naVitrine: number; totalDenuncias: number };
 }
 
 export interface PaginacaoResponse<T> {
@@ -336,6 +364,8 @@ export interface UpdatePedidoStatusData {
 
 export interface CreateAvaliacaoData {
   pedidoId: string;
+  // Produto do pedido que está sendo avaliado
+  produtoId: string;
   nota: number;
   comentario?: string;
 }

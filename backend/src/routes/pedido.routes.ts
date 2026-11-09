@@ -9,10 +9,14 @@ import { unidadesNoCondominio } from '../services/unidades';
 const router = Router();
 const prisma = new PrismaClient();
 
-// RN02: a avaliação só aparece para quem a escreveu; o vendedor vê o pedido sem ela,
-// para não ligar a nota ao comprador
-const ocultarAvaliacaoDeTerceiros = <T extends { compradorId: string; avaliacao?: unknown }>(pedido: T, usuarioId: string) =>
-  pedido.compradorId === usuarioId ? pedido : { ...pedido, avaliacao: null };
+// RN02: as avaliações do pedido (uma por produto) só aparecem para quem as escreveu; o vendedor
+// vê o pedido sem elas, para não ligar a nota ao comprador
+const ocultarAvaliacaoDeTerceiros = <T extends { compradorId: string; avaliacoes?: unknown[] }>(pedido: T, usuarioId: string) =>
+  pedido.compradorId === usuarioId ? pedido : { ...pedido, avaliacoes: [] };
+
+const avaliacoesDoPedido = {
+  select: { id: true, produtoId: true, nota: true, comentario: true, criadoEm: true, removidaPor: true },
+} as const;
 
 const createPedidoSchema = z.object({
   itens: z.array(z.object({
@@ -154,14 +158,14 @@ router.get('/', authMiddleware, asyncHandler(async (req: AuthRequest, res: Respo
           include: {
             produto: {
               // vendedorId: o app separa as compras das vendas do usuário na mesma lista
-              select: { id: true, nome: true, preco: true, vendedorId: true },
+              select: { id: true, nome: true, preco: true, vendedorId: true, imagemUrl: true },
             },
           },
         },
         comprador: {
           select: { id: true, nome: true, unidade: true },
         },
-        avaliacao: true,
+        avaliacoes: avaliacoesDoPedido,
       },
       orderBy: { criadoEm: 'desc' },
       skip: (pagina - 1) * limite,
@@ -173,7 +177,7 @@ router.get('/', authMiddleware, asyncHandler(async (req: AuthRequest, res: Respo
   await unidadesNoCondominio(prisma, req.user!.condominioId, pedidos.map((p) => p.comprador));
 
   res.json({
-    pedidos: pedidos.map((p: { compradorId: string; avaliacao?: unknown }) => ocultarAvaliacaoDeTerceiros(p, req.user!.id)),
+    pedidos: pedidos.map((p: { compradorId: string; avaliacoes?: unknown[] }) => ocultarAvaliacaoDeTerceiros(p, req.user!.id)),
     paginacao: {
       pagina,
       limite,
@@ -287,14 +291,14 @@ router.get('/:id', authMiddleware, asyncHandler(async (req: AuthRequest, res: Re
       itens: {
         include: {
           produto: {
-            select: { id: true, nome: true, descricao: true, preco: true, categoria: true, vendedorId: true },
+            select: { id: true, nome: true, descricao: true, preco: true, categoria: true, vendedorId: true, imagemUrl: true },
           },
         },
       },
       comprador: {
         select: { id: true, nome: true, unidade: true },
       },
-      avaliacao: true,
+      avaliacoes: avaliacoesDoPedido,
     },
   });
 

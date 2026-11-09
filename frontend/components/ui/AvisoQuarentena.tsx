@@ -15,10 +15,10 @@ interface Props {
 
 const VERMELHO = '#B42318';
 
-// Quadro da quarentena: o motivo em destaque e, abaixo, os motivos das denúncias recebidas,
-// sem identificar quem denunciou (RN02).
+// Quadro da quarentena: o motivo do síndico em destaque. Só o síndico vê também os motivos
+// das denúncias (sem identificar quem denunciou); para o vendedor elas ficam anônimas (RN02).
 export const AvisoQuarentena: React.FC<Props> = ({ quarentena, para, compacto, style }) => {
-  const denuncias = quarentena?.denuncias ?? [];
+  const denuncias = para === 'sindico' ? quarentena?.denuncias ?? [] : [];
   const automatica = !quarentena?.porSindico;
   const mostrar = compacto ? denuncias.slice(0, 3) : denuncias;
 

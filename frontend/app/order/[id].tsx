@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, FlatList, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
-import { Card, Button, Avatar, ProductImage } from '../../components/ui';
+import { Card, Button, Avatar, ProductImage, Input, Estrelas, nomeDaNota } from '../../components/ui';
 import { STATUS_LABELS, TIPO_ENTREGA_LABELS, ACAO_STATUS_LABELS } from '../../constants';
 import { Pedido, ItemPedido, StatusPedido } from '../../types';
 import { formatBRL, toNumber } from '../../utils/format';
@@ -26,7 +26,8 @@ export default function OrderDetailScreen() {
 
   const [pedido, setPedido] = useState<Pedido | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showAvaliacaoModal, setShowAvaliacaoModal] = useState(false);
+  // Produto que está sendo avaliado (uma avaliação por produto do pedido)
+  const [avaliando, setAvaliando] = useState<{ id: string; nome: string } | null>(null);
   const [avaliacaoNota, setAvaliacaoNota] = useState(0);
   const [avaliacaoComentario, setAvaliacaoComentario] = useState('');
   const [avaliacaoLoading, setAvaliacaoLoading] = useState(false);
@@ -59,23 +60,29 @@ export default function OrderDetailScreen() {
     }
   };
 
+  const abrirAvaliacao = (produto: { id: string; nome: string }) => {
+    setAvaliacaoNota(0);
+    setAvaliacaoComentario('');
+    setAvaliando(produto);
+  };
+
   const handleAvaliacao = async () => {
+    if (!pedido || !avaliando) return;
     if (avaliacaoNota === 0) {
-      Alert.alert('Erro', 'Selecione uma nota');
+      Alert.alert('Escolha uma nota', 'Toque nas estrelas para dar uma nota de 1 a 5.');
       return;
     }
 
     setAvaliacaoLoading(true);
     try {
       await createAvaliacao({
-        pedidoId: pedido!.id,
+        pedidoId: pedido.id,
+        produtoId: avaliando.id,
         nota: avaliacaoNota,
-        comentario: avaliacaoComentario || undefined,
+        comentario: avaliacaoComentario.trim() || undefined,
       });
-      setShowAvaliacaoModal(false);
-      setAvaliacaoNota(0);
-      setAvaliacaoComentario('');
-      Alert.alert('Sucesso', 'Avaliação enviada com sucesso!');
+      setAvaliando(null);
+      Alert.alert('Obrigado!', 'Sua avaliação foi enviada. Ela aparece no anúncio sem mostrar o seu nome.');
       carregarPedido();
     } catch (error: any) {
       Alert.alert('Erro', error.message || 'Erro ao enviar avaliação');
@@ -108,12 +115,15 @@ export default function OrderDetailScreen() {
     return pedido.compradorId === usuario?.id;
   };
 
-  const canAvaliar = () => {
-    if (!pedido) return false;
-    return pedido.status === 'ENTREGUE' &&
-           pedido.compradorId === usuario?.id &&
-           !pedido.avaliacao;
-  };
+  // Só quem comprou avalia, depois da entrega; cada produto do pedido recebe a sua nota
+  const souComprador = !!pedido && pedido.compradorId === usuario?.id;
+  const produtosDoPedido = pedido
+    ? pedido.itens
+        .filter((i, k, todos) => !!i.produto && todos.findIndex((o) => o.produtoId === i.produtoId) === k)
+        .map((i) => ({ id: i.produtoId, nome: i.produto?.nome || 'Produto' }))
+    : [];
+  const avaliacaoDo = (produtoId: string) => pedido?.avaliacoes?.find((a) => a.produtoId === produtoId);
+  const mostrarAvaliacoes = souComprador && pedido?.status === 'ENTREGUE' && produtosDoPedido.length > 0;
 
   const renderStatusBadge = (status: StatusPedido) => (
     <View style={[styles.statusBadge, { backgroundColor: STATUS_COLORS[status] }]}>
@@ -299,45 +309,76 @@ export default function OrderDetailScreen() {
         </Card>
       )}
 
-      {/* Avaliação */}
-      {canAvaliar() && (
+      {/* Avaliações: uma por produto, só para quem comprou e depois da entrega */}
+      {mostrarAvaliacoes && (
         <Card style={styles.avaliacaoCard}>
           <View style={styles.avaliacaoHeader}>
-            <Ionicons name="star-outline" size={24} color="#FFC107" />
-            <Text style={styles.sectionTitle}>Avalie este Pedido</Text>
+            <Ionicons name="star-outline" size={22} color="#F5A524" />
+            <Text style={[styles.sectionTitle, styles.semMargem]}>Avalie o que você comprou</Text>
           </View>
-          <Button
-            title="Avaliar (1 a 5 estrelas)"
-            onPress={() => setShowAvaliacaoModal(true)}
-            variant="outline"
-            fullWidth
-          />
+          <Text style={styles.avaliacaoAjuda}>
+            A nota aparece no anúncio sem o seu nome e não pode ser alterada depois.
+          </Text>
+          {produtosDoPedido.map((p) => {
+            const feita = avaliacaoDo(p.id);
+            return (
+              <View key={p.id} style={styles.avaliacaoLinha}>
+                <View style={styles.avaliacaoLinhaTexto}>
+                  <Text style={styles.avaliacaoProduto} numberOfLines={1}>{p.nome}</Text>
+                  {feita ? (
+                    <>
+                      <Estrelas nota={feita.nota} tamanho={16} />
+                      {feita.comentario ? (
+                        <Text style={styles.avaliacaoComentario}>"{feita.comentario}"</Text>
+                      ) : null}
+                      {feita.removidaPor ? (
+                        <Text style={styles.avaliacaoRemovida}>Removida pelo síndico</Text>
+                      ) : null}
+                    </>
+                  ) : (
+                    <Text style={styles.avaliacaoPendente}>Ainda não avaliado</Text>
+                  )}
+                </View>
+                {!feita && (
+                  <Button title="Avaliar" onPress={() => abrirAvaliacao(p)} variant="outline" size="sm" />
+                )}
+              </View>
+            );
+          })}
         </Card>
       )}
 
-      {pedido.avaliacao && (
-        <Card style={styles.avaliacaoCard}>
-          <View style={styles.avaliacaoHeader}>
-            <Ionicons name="star" size={24} color="#FFC107" />
-            <Text style={styles.sectionTitle}>Sua Avaliação</Text>
-          </View>
-          <View style={styles.avaliacaoContent}>
-            <View style={styles.avaliacaoStars}>
-              {Array.from({ length: 5 }, (_, i) => (
-                <Ionicons
-                  key={i}
-                  name={i < pedido.avaliacao!.nota ? 'star' : 'star-outline'}
-                  size={24}
-                  color="#FFC107"
-                />
-              ))}
+      <Modal visible={!!avaliando} animationType="slide" transparent onRequestClose={() => setAvaliando(null)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalFundo}>
+          <TouchableOpacity style={styles.modalFundo} activeOpacity={1} onPress={() => setAvaliando(null)} />
+          <View style={styles.modalCaixa}>
+            <View style={styles.modalTopo}>
+              <Text style={styles.modalTitulo}>Avaliar produto</Text>
+              <TouchableOpacity onPress={() => setAvaliando(null)} accessibilityLabel="Fechar">
+                <Ionicons name="close" size={24} color="#6C7A8A" />
+              </TouchableOpacity>
             </View>
-            {pedido.avaliacao.comentario && (
-              <Text style={styles.avaliacaoComentario}>"{pedido.avaliacao.comentario}"</Text>
-            )}
+            <Text style={styles.modalProduto}>{avaliando?.nome}</Text>
+            <Estrelas nota={avaliacaoNota} tamanho={36} onChange={setAvaliacaoNota} style={styles.modalEstrelas} />
+            <Text style={styles.modalNotaNome}>{avaliacaoNota ? nomeDaNota(avaliacaoNota) : 'Toque numa estrela'}</Text>
+            <Input
+              label="Comentário (opcional)"
+              placeholder="Conte como foi: sabor, entrega, atendimento..."
+              value={avaliacaoComentario}
+              onChangeText={setAvaliacaoComentario}
+              multiline
+              maxLength={500}
+            />
+            <Button
+              title="Enviar avaliação"
+              onPress={handleAvaliacao}
+              loading={avaliacaoLoading}
+              disabled={avaliacaoNota === 0}
+              fullWidth
+            />
           </View>
-        </Card>
-      )}
+        </KeyboardAvoidingView>
+      </Modal>
     </ScrollView>
   );
 }
@@ -589,14 +630,77 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 6,
   },
-  avaliacaoContent: {
-    gap: 8,
+  semMargem: {
+    marginBottom: 0,
   },
-  avaliacaoStars: {
+  avaliacaoAjuda: {
+    fontSize: 13,
+    color: '#6C7A8A',
+    marginBottom: 8,
+  },
+  avaliacaoLinha: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E8EBEF',
+  },
+  avaliacaoLinhaTexto: {
+    flex: 1,
     gap: 4,
+  },
+  avaliacaoProduto: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1E3A5F',
+  },
+  avaliacaoPendente: {
+    fontSize: 13,
+    color: '#9AA8B8',
+  },
+  avaliacaoRemovida: {
+    fontSize: 12,
+    color: '#B42318',
+  },
+  modalFundo: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  modalCaixa: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 32,
+    gap: 12,
+  },
+  modalTopo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalTitulo: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E3A5F',
+  },
+  modalProduto: {
+    fontSize: 15,
+    color: '#3D4A5A',
+  },
+  modalEstrelas: {
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  modalNotaNome: {
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6C7A8A',
   },
   avaliacaoComentario: {
     fontSize: 14,

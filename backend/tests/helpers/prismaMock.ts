@@ -10,6 +10,8 @@ const criarModelo = () => ({
   createMany: jest.fn(),
   update: jest.fn(),
   updateMany: jest.fn(),
+  upsert: jest.fn(),
+  groupBy: jest.fn(),
 });
 
 export const prismaMock = {

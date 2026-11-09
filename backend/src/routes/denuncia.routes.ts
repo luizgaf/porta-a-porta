@@ -168,6 +168,66 @@ router.get('/', authMiddleware, requireRole('SINDICO'), asyncHandler(async (req:
   });
 }));
 
+// GET /api/denuncias/produtos - Fila de moderação: um item por anúncio denunciado, com a quantidade
+// de denúncias, a data da última e os motivos mais recentes, sem identificar quem denunciou (RN02).
+// Anúncios excluídos ficam de fora. "resumo" traz quantos estão em quarentena e quantos seguem na vitrine.
+router.get('/produtos', authMiddleware, requireRole('SINDICO'), asyncHandler(async (req: AuthRequest, res: Response) => {
+  const denuncias = await prisma.denuncia.findMany({
+    where: {
+      produto: { condominioId: req.user!.condominioId, status: { not: 'EXCLUIDO' } },
+    },
+    select: {
+      ...denunciaSemIdentificacao,
+      produto: {
+        select: {
+          id: true,
+          nome: true,
+          status: true,
+          imagemUrl: true,
+          vendedor: { select: { id: true, nome: true, unidade: true } },
+        },
+      },
+    },
+    orderBy: { criadoEm: 'desc' },
+  });
+
+  type Item = {
+    produto: NonNullable<(typeof denuncias)[number]['produto']>;
+    totalDenuncias: number;
+    ultimaDenuncia: Date;
+    motivos: string[];
+  };
+  const porProduto = new Map<string, Item>();
+  for (const d of denuncias) {
+    if (!d.produto) continue;
+    const item = porProduto.get(d.produtoId);
+    if (item) {
+      item.totalDenuncias++;
+      if (item.motivos.length < 3) item.motivos.push(d.motivo);
+    } else {
+      porProduto.set(d.produtoId, { produto: d.produto, totalDenuncias: 1, ultimaDenuncia: d.criadoEm, motivos: [d.motivo] });
+    }
+  }
+
+  // Em quarentena primeiro; depois, os que têm mais denúncias e as mais recentes
+  const produtos = [...porProduto.values()].sort((a, b) => {
+    const qa = a.produto.status === 'QUARENTENA' ? 0 : 1;
+    const qb = b.produto.status === 'QUARENTENA' ? 0 : 1;
+    if (qa !== qb) return qa - qb;
+    if (a.totalDenuncias !== b.totalDenuncias) return b.totalDenuncias - a.totalDenuncias;
+    return b.ultimaDenuncia.getTime() - a.ultimaDenuncia.getTime();
+  });
+
+  res.json({
+    produtos,
+    resumo: {
+      emQuarentena: produtos.filter((p) => p.produto.status === 'QUARENTENA').length,
+      naVitrine: produtos.filter((p) => p.produto.status !== 'QUARENTENA').length,
+      totalDenuncias: denuncias.length,
+    },
+  });
+}));
+
 // GET /api/denuncias/produto/:produtoId - Ver denúncias de um produto, sem identificação (síndico)
 router.get('/produto/:produtoId', authMiddleware, requireRole('SINDICO'), asyncHandler(async (req: AuthRequest, res: Response) => {
   const { produtoId } = req.params;
