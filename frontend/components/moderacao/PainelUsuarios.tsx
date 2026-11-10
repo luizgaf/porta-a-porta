@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Modal, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
 import { Avatar, Button, Input } from '../ui';
 import { PedidosParticipacao } from './PedidosParticipacao';
+import { Falha } from './Estado';
 import { STATUS_LABELS } from '../../constants';
 import { PainelUsuarios as Painel, Sancao, TipoSancao, UsuarioDoPainel } from '../../types';
 import { colors, spacing, typography, borderRadius } from '../../constants/design';
@@ -16,6 +17,8 @@ import { colors, spacing, typography, borderRadius } from '../../constants/desig
 interface Props {
   // Muda a cada "puxar para atualizar" da tela de moderação
   atualizar: number;
+  // Quantos pedidos de participação aguardam decisão (contador da aba)
+  onPendentes?: (total: number) => void;
 }
 
 type Filtro = 'TODOS' | 'NOVOS' | 'COMPRADOR' | 'VENDEDOR' | 'SUSPENSO' | 'BANIDO' | 'ADVERTIDOS';
@@ -41,12 +44,13 @@ const data = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '
 const dataHora = (iso: string) =>
   new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-export function PainelUsuarios({ atualizar }: Props) {
+export function PainelUsuarios({ atualizar, onPendentes }: Props) {
   const { usuario: eu } = useAuth();
   const { getPainelUsuarios, getSancoes, aplicarSancao, reativarUsuario } = useApi();
 
   const [painel, setPainel] = useState<Painel | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
   const [filtro, setFiltro] = useState<Filtro>('TODOS');
   const [busca, setBusca] = useState('');
 
@@ -60,8 +64,9 @@ export function PainelUsuarios({ atualizar }: Props) {
   const carregar = useCallback(async () => {
     try {
       setPainel(await getPainelUsuarios());
+      setErro(null);
     } catch (error: any) {
-      Alert.alert('Erro', error.message || 'Não foi possível carregar os usuários');
+      setErro(error?.message || 'Não foi possível carregar os usuários.');
     } finally {
       setCarregando(false);
     }
@@ -70,6 +75,22 @@ export function PainelUsuarios({ atualizar }: Props) {
   useEffect(() => {
     carregar();
   }, [carregar, atualizar]);
+
+  // Contagem de pedidos de participação conhecida pelo painel. Fica numa ref para a função abaixo
+  // não mudar a cada renderização: antes, uma função nova a cada render fazia o efeito de
+  // PedidosParticipacao rodar de novo toda vez, e qualquer diferença recarregava o painel em ciclo.
+  const pendentesRef = useRef(0);
+  useEffect(() => {
+    pendentesRef.current = painel?.resumo.pedidosParticipacao ?? 0;
+    if (painel) onPendentes?.(painel.resumo.pedidosParticipacao);
+  }, [painel, onPendentes]);
+
+  const aoContarPedidos = useCallback(
+    (total: number) => {
+      if (total !== pendentesRef.current) carregar();
+    },
+    [carregar],
+  );
 
   const lista = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -145,7 +166,7 @@ export function PainelUsuarios({ atualizar }: Props) {
   if (carregando) {
     return <ActivityIndicator size="large" color={colors.primary} style={styles.carregando} />;
   }
-  if (!painel) return null;
+  if (!painel) return erro ? <Falha mensagem={erro} onTentar={carregar} /> : null;
 
   const { resumo } = painel;
   const novos = painel.usuarios.filter((u) => u.novo).slice(0, 10);
@@ -183,7 +204,7 @@ export function PainelUsuarios({ atualizar }: Props) {
       {resumo.pedidosParticipacao > 0 && (
         <View style={styles.secao}>
           <Text style={styles.secaoTitulo}>Pedidos para participar ({resumo.pedidosParticipacao})</Text>
-          <PedidosParticipacao atualizar={atualizar} onContagem={(n) => n !== resumo.pedidosParticipacao && carregar()} />
+          <PedidosParticipacao atualizar={atualizar} onContagem={aoContarPedidos} />
         </View>
       )}
 

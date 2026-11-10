@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { ProductImage } from './ProductImage';
 import { colors, spacing, borderRadius, typography, shadows } from '../../constants/design';
 import { Produto } from '../../types';
@@ -33,6 +34,15 @@ export const ProductTile: React.FC<ProductTileProps> = ({ produto, onPress, styl
             <Text style={styles.seloTexto}>{emQuarentena ? 'Em quarentena' : 'Indisponível'}</Text>
           </View>
         )}
+        {/* Nota média sobre a foto, para todos os cards da grade manterem a mesma altura */}
+        {(produto.totalAvaliacoes ?? 0) > 0 ? (
+          <View style={styles.nota} accessibilityLabel={`Nota ${produto.mediaAvaliacoes} de 5`}>
+            <Ionicons name="star" size={11} color="#F5A524" />
+            <Text style={styles.notaTexto}>
+              {(produto.mediaAvaliacoes ?? 0).toFixed(1).replace('.', ',')} ({produto.totalAvaliacoes})
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.info}>
@@ -118,6 +128,23 @@ const styles = StyleSheet.create({
     fontFamily: typography.displaySmall.fontFamily,
     fontSize: 17,
     color: colors.primary,
+  },
+  nota: {
+    position: 'absolute',
+    left: spacing.sm,
+    bottom: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(255,255,255,0.94)',
+  },
+  notaTexto: {
+    fontFamily: typography.labelSmall.fontFamily,
+    fontSize: 11,
+    color: colors.textPrimary,
   },
   precoPausado: {
     color: colors.textMuted,

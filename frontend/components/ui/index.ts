@@ -9,3 +9,4 @@ export { ProductImage } from './ProductImage';
 export { ProductTile } from './ProductTile';
 export { AvisoQuarentena } from './AvisoQuarentena';
 
+export { Estrelas, nomeDaNota } from './Estrelas';

@@ -65,6 +65,7 @@ model Produto {
   atualizadoEm DateTime      @updatedAt @map("atualizado_em")
   denuncias    Denuncia[]
   itensPedido  ItemPedido[]
+  avaliacoes   Avaliacao[]
   condominio   Condominio    @relation(fields: [condominioId], references: [id], onDelete: Cascade)
   vendedor     Usuario       @relation("VendedorProdutos", fields: [vendedorId], references: [id], onDelete: Cascade)
 
@@ -86,7 +87,7 @@ model Pedido {
   valorTotal     Decimal      @map("valor_total") @db.Decimal(10, 2)
   criadoEm       DateTime     @default(now()) @map("criado_em")
   atualizadoEm   DateTime     @updatedAt @map("atualizado_em")
-  avaliacao      Avaliacao?
+  avaliacoes     Avaliacao[]
   itens          ItemPedido[]
   comprador      Usuario      @relation("CompradorPedidos", fields: [compradorId], references: [id], onDelete: Cascade)
   condominio     Condominio   @relation(fields: [condominioId], references: [id], onDelete: Cascade)
@@ -127,9 +128,11 @@ model Denuncia {
   @@map("denuncias")
 }
 
+// Uma avaliação por produto do pedido: num pedido com dois produtos, o comprador avalia cada um
 model Avaliacao {
   id          String   @id @default(uuid())
-  pedidoId    String   @unique @map("pedido_id")
+  pedidoId    String   @map("pedido_id")
+  produtoId   String   @map("produto_id")
   compradorId String   @map("comprador_id")
   nota        Int
   comentario  String?
@@ -137,8 +140,11 @@ model Avaliacao {
   criadoEm    DateTime @default(now()) @map("criado_em")
   comprador   Usuario  @relation(fields: [compradorId], references: [id], onDelete: Cascade)
   pedido      Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produto     Produto  @relation(fields: [produtoId], references: [id], onDelete: Cascade)
 
+  @@unique([pedidoId, produtoId])
   @@index([compradorId])
+  @@index([produtoId])
   @@map("avaliacoes")
 }
 

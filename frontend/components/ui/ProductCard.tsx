@@ -89,7 +89,7 @@ export const ProductCard = React.forwardRef<React.ElementRef<typeof TouchableOpa
                   R$ {Number(product.preco).toFixed(2).replace('.', ',')}
                 </Text>
 
-                {product.media_avaliacoes && (product.total_avaliacoes || 0) > 0 && (
+                {(product.totalAvaliacoes ?? 0) > 0 ? (
                   <View style={styles.rating}>
                     <Ionicons name="star" size={14} color={colors.warning} />
                     <Text
@@ -98,10 +98,10 @@ export const ProductCard = React.forwardRef<React.ElementRef<typeof TouchableOpa
                         { fontFamily: typography.utilitySmall.fontFamily, fontSize: typography.utilitySmall.fontSize },
                       ]}
                     >
-                      {Number(product.media_avaliacoes).toFixed(1)} ({product.total_avaliacoes})
+                      {Number(product.mediaAvaliacoes ?? 0).toFixed(1).replace('.', ',')} ({product.totalAvaliacoes})
                     </Text>
                   </View>
-                )}
+                ) : null}
               </View>
             </View>
           </View>

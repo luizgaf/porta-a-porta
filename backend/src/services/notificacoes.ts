@@ -16,7 +16,8 @@ export type TipoNotificacao =
   | 'ADVERTENCIA'
   | 'SUSPENSAO'
   | 'BANIMENTO'
-  | 'REATIVACAO';
+  | 'REATIVACAO'
+  | 'NOVA_AVALIACAO';
 
 export interface NovaNotificacao {
   condominioId: string;

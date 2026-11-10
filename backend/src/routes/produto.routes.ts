@@ -15,6 +15,7 @@ import {
 } from '../services/imagens';
 import { unidadesNoCondominio } from '../services/unidades';
 import { motivosDeQuarentena } from '../services/quarentena';
+import { comAvaliacoes } from '../services/avaliacoes';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -124,7 +125,7 @@ router.get('/', authMiddleware, asyncHandler(async (req: AuthRequest, res: Respo
   await unidadesNoCondominio(prisma, req.user!.condominioId, produtos.map((p) => p.vendedor));
 
   res.json({
-    produtos: await comMotivoDeQuarentena(produtos),
+    produtos: await comAvaliacoes(prisma, await comMotivoDeQuarentena(produtos, req.user!.tipo === 'SINDICO')),
     paginacao: {
       pagina,
       limite,
@@ -136,11 +137,18 @@ router.get('/', authMiddleware, asyncHandler(async (req: AuthRequest, res: Respo
 
 // Acrescenta o motivo da quarentena aos anúncios suspensos. Só é chamada nas respostas que
 // chegam ao síndico ou ao vendedor dono, pois os demais não recebem anúncios em quarentena.
-const comMotivoDeQuarentena = async <T extends { id: string; status: string }>(produtos: T[]) => {
+// O vendedor recebe só o motivo do síndico (ou o da suspensão automática); os motivos escritos
+// pelos denunciantes ficam só com o síndico (RN02).
+const comMotivoDeQuarentena = async <T extends { id: string; status: string }>(produtos: T[], ehSindico: boolean) => {
   const suspensos = produtos.filter((p) => p.status === 'QUARENTENA').map((p) => p.id);
   if (suspensos.length === 0) return produtos;
   const motivos = await motivosDeQuarentena(prisma, suspensos);
-  return produtos.map((p) => (p.status === 'QUARENTENA' ? { ...p, quarentena: motivos.get(p.id) } : p));
+  return produtos.map((p) => {
+    if (p.status !== 'QUARENTENA') return p;
+    const info = motivos.get(p.id);
+    if (!info) return p;
+    return { ...p, quarentena: ehSindico ? info : { motivo: info.motivo, porSindico: info.porSindico, data: info.data } };
+  });
 };
 
 // GET /api/produtos/meus - Meus produtos (vendedor)
@@ -166,7 +174,7 @@ router.get('/meus', authMiddleware, requireRole('VENDEDOR'), asyncHandler(async 
   ]);
 
   res.json({
-    produtos: await comMotivoDeQuarentena(produtos),
+    produtos: await comAvaliacoes(prisma, await comMotivoDeQuarentena(produtos, req.user!.tipo === 'SINDICO')),
     paginacao: {
       pagina,
       limite,
@@ -206,8 +214,9 @@ router.get('/:id', authMiddleware, asyncHandler(async (req: AuthRequest, res: Re
 
   await unidadesNoCondominio(prisma, req.user!.condominioId, [produto.vendedor]);
 
-  const [comMotivo] = await comMotivoDeQuarentena([produto]);
-  res.json({ produto: comMotivo });
+  const [comMotivo] = await comMotivoDeQuarentena([produto], ehSindico);
+  const [completo] = await comAvaliacoes(prisma, [comMotivo]);
+  res.json({ produto: completo });
 }));
 
 // PUT /api/produtos/:id - Atualizar produto (apenas vendedor dono ou síndico)

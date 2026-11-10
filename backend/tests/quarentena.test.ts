@@ -62,7 +62,7 @@ describe('Anúncio em quarentena', () => {
     );
   });
 
-  test('TU43 - o vendedor dono vê o próprio anúncio em quarentena com o motivo do síndico', async () => {
+  test('TU43 - o vendedor dono vê o próprio anúncio em quarentena só com o motivo do síndico', async () => {
     const token = entrarComo(vendedor);
     prismaMock.produto.findFirst.mockResolvedValue(produtoEmQuarentena);
     prismaMock.logAuditoria.findMany.mockResolvedValue([
@@ -77,13 +77,15 @@ describe('Anúncio em quarentena', () => {
 
     expect(status).toBe(200);
     expect(corpo.produto.quarentena).toEqual(
-      expect.objectContaining({
-        motivo: 'Foto não corresponde ao produto',
-        porSindico: true,
-        denuncias: ['Foto enganosa', 'Produto vencido'],
-      }),
+      expect.objectContaining({ motivo: 'Foto não corresponde ao produto', porSindico: true }),
     );
-    // Os motivos das denúncias vêm sem identificação de quem denunciou
+    // O vendedor não recebe os motivos das denúncias: só o do síndico
+    expect(corpo.produto.quarentena.denuncias).toBeUndefined();
+    expect(JSON.stringify(corpo)).not.toContain('Foto enganosa');
+
+    // O síndico recebe os motivos das denúncias, sem identificação de quem denunciou
+    const doSindico = await chamar('GET', `/api/produtos/${PRODUTO_1}`, entrarComo(sindico));
+    expect(doSindico.corpo.produto.quarentena.denuncias).toEqual(['Foto enganosa', 'Produto vencido']);
     expect(prismaMock.denuncia.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ select: { produtoId: true, motivo: true } }),
     );

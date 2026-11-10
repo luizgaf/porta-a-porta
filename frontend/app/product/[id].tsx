@@ -4,7 +4,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useApi } from '../../hooks/useApi';
-import { Card, Button, Avatar, Input, ProductImage, AvisoQuarentena } from '../../components/ui';
+import { Card, Button, Avatar, Input, ProductImage, AvisoQuarentena, Estrelas } from '../../components/ui';
+import { AvaliacoesDoProduto } from '../../components/avaliacoes/AvaliacoesDoProduto';
 import { STATUS_LABELS } from '../../constants';
 import { Produto } from '../../types';
 import { escolherFoto } from '../../utils/foto';
@@ -195,6 +196,15 @@ export default function ProductDetailScreen() {
               <Text style={styles.preco}>R$ {parseFloat(String(produto.preco)).toFixed(2).replace('.', ',')}</Text>
               <Text style={styles.categoria}>{produto.categoria}</Text>
             </View>
+            {(produto.totalAvaliacoes ?? 0) > 0 ? (
+              <View style={styles.notaResumo}>
+                <Estrelas nota={produto.mediaAvaliacoes ?? 0} tamanho={14} />
+                <Text style={styles.notaResumoTexto}>
+                  {(produto.mediaAvaliacoes ?? 0).toFixed(1).replace('.', ',')} · {produto.totalAvaliacoes}{' '}
+                  {produto.totalAvaliacoes === 1 ? 'avaliação' : 'avaliações'}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -215,12 +225,12 @@ export default function ProductDetailScreen() {
         </Card>
 
         {/* Description */}
-        {produto.descricao && (
+        {produto.descricao ? (
           <Card style={styles.descCard}>
             <Text style={styles.sectionTitle}>Descrição</Text>
             <Text style={styles.descricao}>{produto.descricao}</Text>
           </Card>
-        )}
+        ) : null}
 
         {/* Actions */}
         <View style={styles.actions}>
@@ -278,6 +288,12 @@ export default function ProductDetailScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Avaliações de quem comprou (anônimas) */}
+        <Card style={styles.avaliacoesCard}>
+          <Text style={styles.sectionTitle}>Avaliações</Text>
+          <AvaliacoesDoProduto produtoId={produto.id} />
+        </Card>
       </View>
 
       {/* Denuncia Modal */}
@@ -446,6 +462,19 @@ const styles = StyleSheet.create({
   },
   descCard: {
     marginBottom: 24,
+  },
+  avaliacoesCard: {
+    marginTop: 24,
+  },
+  notaResumo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+  },
+  notaResumoTexto: {
+    fontSize: 13,
+    color: '#6C7A8A',
   },
   sectionTitle: {
     fontSize: 16,

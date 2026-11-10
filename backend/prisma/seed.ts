@@ -408,6 +408,48 @@ async function main() {
     copias++;
   }
 
+  // Pedidos já entregues, com avaliações, para a vitrine e o detalhe do produto mostrarem as notas.
+  // Ids fixos: rodar o seed de novo não duplica pedidos nem avaliações.
+  const avaliadores = await prisma.usuario.findMany({
+    where: { email: { in: ['comprador1@pap.com', 'comprador2@pap.com'] } },
+    select: { id: true, email: true, unidade: true },
+  });
+  const exemplosAvaliacao = [
+    { produto: 0, comprador: 'comprador1@pap.com', nota: 5, comentario: 'Chegou quentinho e no horário combinado. Recomendo!' },
+    { produto: 0, comprador: 'comprador2@pap.com', nota: 4, comentario: 'Muito bom, só achei a porção um pouco pequena.' },
+    { produto: 1, comprador: 'comprador1@pap.com', nota: 5, comentario: 'Excelente, já pedi de novo.' },
+    { produto: 2, comprador: 'comprador2@pap.com', nota: 3, comentario: 'Gostoso, mas atrasou um pouco a entrega.' },
+  ];
+  let avaliacoesSeed = 0;
+  for (const [k, ex] of exemplosAvaliacao.entries()) {
+    const comprador = avaliadores.find((a) => a.email === ex.comprador);
+    const modelo = ativosVendedor1[ex.produto];
+    if (!comprador || !modelo) continue;
+    const produtoId = modelo.idSeed ?? `seed-prod-${modelo.nome.toLowerCase().replace(/\s+/g, '-')}`;
+    const pedidoId = `seed-pedido-avaliado-${k + 1}`;
+    await prisma.pedido.upsert({
+      where: { id: pedidoId },
+      update: {},
+      create: {
+        id: pedidoId,
+        condominioId: condominios[0].id,
+        compradorId: comprador.id,
+        unidadeEntrega: comprador.unidade,
+        tipoEntrega: 'UNIDADE',
+        janelaHorario: 'Manhã (8h-12h)',
+        status: 'ENTREGUE',
+        valorTotal: modelo.preco,
+        itens: { create: [{ produtoId, quantidade: 1, precoUnitario: modelo.preco }] },
+      },
+    });
+    await prisma.avaliacao.upsert({
+      where: { pedidoId_produtoId: { pedidoId, produtoId } },
+      update: {},
+      create: { pedidoId, produtoId, compradorId: comprador.id, nota: ex.nota, comentario: ex.comentario },
+    });
+    avaliacoesSeed++;
+  }
+
   console.log('✅ Seed concluído:');
   console.log(`   - ${condominios.length} condomínios criados`);
   console.log(`   - ${condominios.length} síndicos criados`);
@@ -415,6 +457,7 @@ async function main() {
   console.log(`   - ${condominios.length} vendedores (vendedor1@pap.com … vendedor${condominios.length}@pap.com / vendedor123)`);
   console.log(`   - Síndico 1: sindico1@pap.com / sindico123`);
   console.log(`   - ${produtos.length} produtos da Maria Vendedora (${fotos} com foto padrão)`);
+  console.log(`   - ${avaliacoesSeed} pedidos entregues com avaliação (condomínio 1)`);
   console.log(`   - ${copias} produtos de exemplo para os vendedores dos condomínios 2 a ${condominios.length}`);
 }
 

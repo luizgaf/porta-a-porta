@@ -5,6 +5,9 @@ import type {
   Produto,
   Pedido,
   Avaliacao,
+  AvaliacoesDoProduto,
+  FilaDenuncias,
+  LogAuditoria,
   Denuncia,
   Paginacao,
   LoginCredentials,
@@ -204,9 +207,7 @@ export const useApi = () => {
   }, []);
 
   const getAvaliacoesProduto = useCallback(async (produtoId: string) => {
-    return api.get<{ media: number; total: number; avaliacoes: Avaliacao[] }>(
-      `/avaliacoes/produto/${produtoId}`
-    );
+    return api.get<AvaliacoesDoProduto>(`/avaliacoes/produto/${produtoId}`);
   }, []);
 
   const createAvaliacao = useCallback(async (data: CreateAvaliacaoData) => {
@@ -214,8 +215,8 @@ export const useApi = () => {
   }, []);
 
   // Remoção pelo síndico; a justificativa fica registrada na auditoria (RN02)
-  const deleteAvaliacao = useCallback(async (pedidoId: string, justificativa: string) => {
-    return api.delete<{ message: string }>(`/avaliacoes/${pedidoId}`, { justificativa });
+  const deleteAvaliacao = useCallback(async (avaliacaoId: string, justificativa: string) => {
+    return api.delete<{ message: string }>(`/avaliacoes/${avaliacaoId}`, { justificativa });
   }, []);
 
   // Foto do produto (uma por produto, até 5 MB)
@@ -242,6 +243,19 @@ export const useApi = () => {
     limite?: number;
   }) => {
     return api.get<Paginacao<Denuncia>>('/denuncias', params);
+  }, []);
+
+  // Fila de moderação agrupada por anúncio
+  const getFilaDenuncias = useCallback(async () => {
+    return api.get<FilaDenuncias>('/denuncias/produtos');
+  }, []);
+
+  // Histórico de decisões do síndico (log de auditoria), sem as consultas de denúncias
+  const getHistoricoModeracao = useCallback(async (pagina = 1) => {
+    return api.get<{ logs: LogAuditoria[]; paginacao: { pagina: number; totalPaginas: number; total: number } }>(
+      '/auditoria',
+      { pagina, limite: 20, ocultarConsultas: 'true' }
+    );
   }, []);
 
   const getDenunciasProduto = useCallback(async (produtoId: string) => {
@@ -315,6 +329,8 @@ export const useApi = () => {
 
     // Denúncias
     getDenuncias,
+    getFilaDenuncias,
+    getHistoricoModeracao,
     getDenunciasProduto,
     createDenuncia,
     updateDenunciaStatus,
@@ -352,6 +368,8 @@ export interface UpdatePedidoStatusData {
 
 export interface CreateAvaliacaoData {
   pedidoId: string;
+  // Produto do pedido que está sendo avaliado (uma avaliação por produto)
+  produtoId: string;
   nota: number;
   comentario?: string;
 }

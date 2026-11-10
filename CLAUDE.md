@@ -26,7 +26,7 @@ Produto (id, condominio_id, vendedor_id, nome, descricao, preco, categoria, stat
 Pedido (id, condominio_id, comprador_id, unidade_entrega, tipo_entrega, janela_horario, status, valor_total)
 ItemPedido (id, pedido_id, produto_id, quantidade, preco_unitario)
 Denuncia (id, produto_id, denunciante_id, motivo) — UNIQUE(produto_id, denunciante_id)
-Avaliacao (id, pedido_id, comprador_id, nota, comentario, removida_por) — UNIQUE(pedido_id)
+Avaliacao (id, pedido_id, produto_id, comprador_id, nota, comentario, removida_por) — UNIQUE(pedido_id, produto_id): uma avaliação por produto do pedido
 LogAuditoria (id, sindico_id, acao, entidade_id, justificativa)
 Notificacao (id, condominio_id, usuario_id, tipo, mensagem, entidade_tipo, entidade_id, lida)
 Vinculo (id, usuario_id, condominio_id, unidade, tipo_solicitado, tipo, status, decidido_por, decidido_em) — UNIQUE(usuario_id, condominio_id)
@@ -60,7 +60,7 @@ Produto.imagem_url — foto do produto guardada no servidor (pasta backend/uploa
 - **RN03**: Preço congelado no `ItemPedido.precoUnitario` no momento do pedido
 - **RN04**: Transição de status do pedido validada (máquina de estados)
 - **RN05**: Auto-quarentena de produto com 3+ denúncias distintas
-- **Quarentena**: anúncio em quarentena só aparece para o síndico e para o vendedor dono, com `produto.quarentena = { motivo, porSindico, data, denuncias }` (motivo da última decisão do síndico ou "Muitas denúncias: produto sob análise do síndico." na suspensão automática; `denuncias` = motivos das denúncias, sem identificação). Só o síndico tira da quarentena; para colocar um anúncio ativo em quarentena o motivo é obrigatório, para manter um que já está em quarentena é opcional
+- **Quarentena**: anúncio em quarentena só aparece para o síndico e para o vendedor dono, com `produto.quarentena = { motivo, porSindico, data }` (motivo da última decisão do síndico ou "Muitas denúncias: produto sob análise do síndico." na suspensão automática). Só o síndico recebe também `denuncias` (motivos das denúncias, sem identificação); para o vendedor elas ficam anônimas e ocultas. Só o síndico tira da quarentena; para colocar um anúncio ativo em quarentena o motivo é obrigatório, para manter um que já está em quarentena é opcional
 - **Multitenancy**: `condominio_id` em todas as entidades + isolamento via token JWT
 
 ---
@@ -103,15 +103,16 @@ npm run prisma:studio
 ### Denúncias (Task 5)
 - `POST /api/denuncias` — Criar denúncia (auto-quarentena se ≥3)
 - `GET /api/denuncias` — Listar, sem identificação do denunciante (SINDICO)
+- `GET /api/denuncias/produtos` — Fila de moderação agrupada por anúncio `{ produtos: [{ produto, totalDenuncias, ultimaDenuncia, motivos }], resumo }` (SINDICO; quarentena primeiro)
 - `GET /api/denuncias/produto/:produtoId` — Ver denúncias do produto, sem identificação do denunciante (SINDICO, LogAuditoria)
 - `PATCH /api/denuncias/:produtoId/quarentena` — Aplicar/restaurar quarentena (SINDICO, LogAuditoria)
 
 ### Avaliações (Task 6)
-- `POST /api/avaliacoes` — Criar (COMPRADOR, pedido ENTREGUE)
-- `GET /api/avaliacoes` — Listar (VENDEDOR/SINDICO)
-- `GET /api/avaliacoes/produto/:produtoId` — Média por produto
-- `PUT /api/avaliacoes/:pedidoId` — Edição bloqueada (403): avaliações são definitivas
-- `DELETE /api/avaliacoes/:pedidoId` — Remover (SINDICO), corpo `{ justificativa }` obrigatório; grava LogAuditoria `REMOVER_AVALIACAO`
+- `POST /api/avaliacoes` — `{ pedidoId, produtoId, nota, comentario? }` (COMPRADOR, pedido ENTREGUE; uma por produto do pedido; `produtoId` pode faltar se o pedido tem um produto só). Avisa o vendedor (`NOVA_AVALIACAO`)
+- `GET /api/avaliacoes` — Listar com `produto { id, nome }` (VENDEDOR: dos seus produtos; SINDICO: do condomínio, com `removidaPor`)
+- `GET /api/avaliacoes/produto/:produtoId` — `{ media, total, distribuicao, avaliacoes }` do produto (qualquer usuário do condomínio). Listagem e detalhe de produtos trazem `mediaAvaliacoes` e `totalAvaliacoes`
+- `PUT /api/avaliacoes/:id` — Edição bloqueada (403): avaliações são definitivas
+- `DELETE /api/avaliacoes/:id` — Remover (SINDICO; `:id` é o id da avaliação), corpo `{ justificativa }` obrigatório; grava LogAuditoria `REMOVER_AVALIACAO`
 - Respostas de avaliação nunca identificam o avaliador; o vendedor não recebe nem o pedidoId (RN02)
 
 ### Vínculos com outros condomínios
@@ -135,7 +136,7 @@ npm run prisma:studio
 
 ### Auditoria (Task 7)
 - `POST /api/auditoria` — Registrar log (SINDICO)
-- `GET /api/auditoria` — Listar logs (SINDICO)
+- `GET /api/auditoria` — Listar logs com `entidadeNome` (SINDICO; `ocultarConsultas=true` esconde `VISUALIZAR_DENUNCIAS`)
 
 ### Foto do produto
 - `PUT /api/produtos/:id/imagem` — Corpo = arquivo (image/jpeg, image/png ou image/webp, até 5 MB - RNF05). Dono ou SINDICO. 415 se não for imagem, 413 se passar do limite
@@ -231,7 +232,7 @@ frontend/
 | `/(tabs)/dashboard` | Painel de vendas (dashboard) | VENDEDOR/SINDICO |
 | `/(tabs)/seller` | Anúncios do vendedor | VENDEDOR/SINDICO |
 | `/condominios` | Trocar de condomínio / pedir para participar de outro | Autenticado |
-| `/(tabs)/moderator` | Moderação: denúncias, avaliações e usuários (painel do condomínio, pedidos de participação, sanções) | SINDICO |
+| `/(tabs)/moderator` | Moderação em 4 abas (components/moderacao): Denúncias (fila por anúncio), Avaliações (remoção com justificativa), Usuários (painel, pedidos de participação, sanções) e Histórico (auditoria) | SINDICO |
 | `/product/[id]` | Detalhe produto | Autenticado |
 | `/product/new` | Criar produto | VENDEDOR/SINDICO |
 | `/order/[id]` | Detalhe pedido + ações | Autenticado |
@@ -269,7 +270,7 @@ npm run lint         # ESLint
 ## Contas de Teste (Seed)
 - **Síndico 1**: `sindico1@pap.com` / `sindico123`
 - **Compradores do condomínio 1**: `comprador1@pap.com` (Apto 101) e `comprador2@pap.com` (Apto 102) / `comprador123`
-- **Vendedor**: `vendedor1@pap.com` / `vendedor123` (Maria Vendedora, 15 produtos; o "Café da Manhã Completo" começa em quarentena com 3 denúncias)
+- **Vendedor**: `vendedor1@pap.com` / `vendedor123` (Maria Vendedora, 15 produtos; o "Café da Manhã Completo" começa em quarentena com 3 denúncias; 4 pedidos entregues de comprador1/comprador2 com avaliações)
 - **Compradores 3-10 e vendedores 2-10**: `compradorN@pap.com` / `comprador123` e `vendedorN@pap.com` / `vendedor123`, no condomínio N; cada vendedorN tem 1 produto copiado da Maria
 - **Síndicos 2-10**: `sindico2@pap.com` … `sindico10@pap.com` / `sindico123`
 - 10 condomínios seed-cond-1 … seed-cond-10

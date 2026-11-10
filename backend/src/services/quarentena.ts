@@ -7,13 +7,14 @@ export interface InfoQuarentena {
   // true quando o síndico colocou ou manteve o anúncio em quarentena; false na suspensão automática
   porSindico: boolean;
   data: Date | null;
-  // Motivos escritos por quem denunciou, sem nenhuma identificação (RN02)
-  denuncias: string[];
+  // Motivos escritos por quem denunciou, sem nenhuma identificação. Só vão para o síndico (RN02)
+  denuncias?: string[];
 }
 
 export const MOTIVO_AUTOMATICO = 'Muitas denúncias: produto sob análise do síndico.';
 
 // Motivo da quarentena de cada anúncio, para mostrar ao vendedor e ao síndico (RN02).
+// As rotas tiram os motivos das denúncias antes de responder a quem não é síndico.
 // Vale a última decisão do síndico registrada na auditoria; se a última foi uma restauração
 // (ou não há decisão), a quarentena atual é a automática, por denúncias.
 export const motivosDeQuarentena = async (prisma: Cliente, produtoIds: string[]) => {
