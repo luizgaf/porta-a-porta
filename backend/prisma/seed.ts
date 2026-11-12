@@ -177,6 +177,17 @@ async function main() {
     });
   }
 
+  // O seed pode mudar o condomínio de origem de uma conta de teste (ex.: comprador2 passou para o
+  // condomínio 1). Um vínculo que sobrou para o próprio condomínio de origem não faz sentido e
+  // faria a pessoa aparecer duas vezes no painel do síndico, então é apagado.
+  const vinculosSobrando = await prisma.vinculo.findMany({
+    select: { id: true, condominioId: true, usuario: { select: { condominioId: true } } },
+  });
+  const paraApagar = vinculosSobrando.filter((v) => v.condominioId === v.usuario.condominioId).map((v) => v.id);
+  if (paraApagar.length > 0) {
+    await prisma.vinculo.deleteMany({ where: { id: { in: paraApagar } } });
+  }
+
   // Produtos de teste para o vendedor1 no condomínio 1
   const produtos = [
     {

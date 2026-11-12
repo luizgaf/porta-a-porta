@@ -92,6 +92,29 @@ describe('Foto de perfil e painel de usuários', () => {
     expect(avisosGravados()).toEqual([expect.objectContaining({ usuarioId: vendedor.id, tipo: 'SUSPENSAO' })]);
   });
 
+  test('TU59 - quem é morador e também tem um vínculo aprovado sobrando aparece uma vez só no painel', async () => {
+    const token = entrarComo(sindico);
+    prismaMock.usuario.findMany.mockResolvedValue(moradores);
+    prismaMock.vinculo.findMany.mockResolvedValue([
+      // Vínculo antigo do comprador com o próprio condomínio de origem
+      { unidade: 'Apto 999', tipo: 'COMPRADOR', decididoEm: new Date(), criadoEm: new Date(), usuario: { id: comprador.id, nome: comprador.nome, fotoUrl: null, condominio: { nome: 'Cond A' } } },
+      // Participante de verdade, de outro condomínio
+      { unidade: 'Apto 305', tipo: 'VENDEDOR', decididoEm: new Date(), criadoEm: new Date(), usuario: { id: comprador2.id, nome: comprador2.nome, fotoUrl: null, condominio: { nome: 'Cond B' } } },
+    ]);
+    prismaMock.vinculo.count.mockResolvedValue(0);
+    prismaMock.sancao.findMany.mockResolvedValue([]);
+
+    const { status, corpo } = await chamar('GET', '/api/usuarios/painel', token);
+
+    expect(status).toBe(200);
+    const ids = corpo.usuarios.map((u: { id: string }) => u.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(corpo.usuarios.find((u: { id: string }) => u.id === comprador.id)).toEqual(
+      expect.objectContaining({ origem: 'MORADOR', unidade: comprador.unidade }),
+    );
+    expect(corpo.resumo).toEqual(expect.objectContaining({ total: 4, participantes: 1 }));
+  });
+
   test('TU50 - usuário suspenso ou banido não acessa o condomínio nem faz login', async () => {
     const ate = new Date(Date.now() + 3 * 86400000);
     prismaMock.sancao.findFirst.mockResolvedValue({ id: 's1', tipo: 'SUSPENSAO', motivo: 'Vendas falsas', ate });
