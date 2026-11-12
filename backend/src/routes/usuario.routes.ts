@@ -191,16 +191,21 @@ const membrosDoCondominio = async (condominioId: string) => {
       origem: 'MORADOR' as const,
       condominioOrigem: null as string | null,
     })),
-    ...(participantes ?? []).map((v) => ({
-      id: v.usuario.id,
-      nome: v.usuario.nome,
-      unidade: v.unidade,
-      tipo: (v.tipo ?? 'COMPRADOR') as string,
-      fotoUrl: v.usuario.fotoUrl,
-      entrouEm: v.decididoEm ?? v.criadoEm,
-      origem: 'PARTICIPANTE' as const,
-      condominioOrigem: v.usuario.condominio.nome as string | null,
-    })),
+    // Quem já é morador daqui não entra de novo como participante. Isso acontece quando um
+    // vínculo aprovado sobra depois que o condomínio de origem do usuário passa a ser este
+    // (por exemplo, ao rodar o seed de novo), e a pessoa apareceria duas vezes no painel
+    ...(participantes ?? [])
+      .filter((v) => !(moradores ?? []).some((u) => u.id === v.usuario.id))
+      .map((v) => ({
+        id: v.usuario.id,
+        nome: v.usuario.nome,
+        unidade: v.unidade,
+        tipo: (v.tipo ?? 'COMPRADOR') as string,
+        fotoUrl: v.usuario.fotoUrl,
+        entrouEm: v.decididoEm ?? v.criadoEm,
+        origem: 'PARTICIPANTE' as const,
+        condominioOrigem: v.usuario.condominio.nome as string | null,
+      })),
   ];
 };
 

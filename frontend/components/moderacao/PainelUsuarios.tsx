@@ -213,7 +213,7 @@ export function PainelUsuarios({ atualizar, onPendentes }: Props) {
           <Text style={styles.secaoTitulo}>Chegaram nos últimos {resumo.diasNovo} dias</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.novos}>
             {novos.map((u) => (
-              <TouchableOpacity key={u.id} style={styles.novo} onPress={() => abrir(u)} activeOpacity={0.8}>
+              <TouchableOpacity key={`${u.origem}-${u.id}`} style={styles.novo} onPress={() => abrir(u)} activeOpacity={0.8}>
                 <Avatar name={u.nome} foto={u.fotoUrl} size="lg" />
                 <Text style={styles.novoNome} numberOfLines={1}>
                   {u.nome.split(' ')[0]}
@@ -250,7 +250,7 @@ export function PainelUsuarios({ atualizar, onPendentes }: Props) {
           <Text style={styles.vazio}>Nenhum usuário neste filtro.</Text>
         ) : (
           lista.map((u) => (
-            <TouchableOpacity key={u.id} style={styles.linha} onPress={() => abrir(u)} activeOpacity={0.8}>
+            <TouchableOpacity key={`${u.origem}-${u.id}`} style={styles.linha} onPress={() => abrir(u)} activeOpacity={0.8}>
               <Avatar name={u.nome} foto={u.fotoUrl} size="md" />
               <View style={styles.linhaTexto}>
                 <Text style={styles.linhaNome} numberOfLines={1}>
