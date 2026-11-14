@@ -153,7 +153,8 @@ export const useApi = () => {
     limite?: number;
     status?: string;
   }) => {
-    return api.get<Paginacao<Produto>>('/produtos/meus', params);
+    // ativos: quantos anúncios ativos o vendedor tem e o limite (RN01), qualquer que seja o filtro
+    return api.get<Paginacao<Produto> & { ativos?: { total: number; limite: number } }>('/produtos/meus', params);
   }, []);
 
   const getProduto = useCallback(async (id: string) => {

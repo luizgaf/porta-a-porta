@@ -18,6 +18,9 @@ import { motivosDeQuarentena } from '../services/quarentena';
 import { comAvaliacoes } from '../services/avaliacoes';
 
 const router = Router();
+
+// RN01: cada vendedor pode ter no máximo 15 anúncios ativos em cada condomínio
+export const LIMITE_ATIVOS = 15;
 const prisma = new PrismaClient();
 
 const createProdutoSchema = z.object({
@@ -51,7 +54,7 @@ router.post('/', authMiddleware, requireRole('VENDEDOR'), asyncHandler(async (re
     },
   });
 
-  if (ativosCount >= 15) {
+  if (ativosCount >= LIMITE_ATIVOS) {
     throw new AppError(400, 'Limite de 15 produtos ativos atingido. Pause ou exclua um produto antes de criar outro.', 'LIMIT_EXCEEDED');
   }
 
@@ -163,7 +166,7 @@ router.get('/meus', authMiddleware, requireRole('VENDEDOR'), asyncHandler(async 
 
   if (status) where.status = status;
 
-  const [produtos, total] = await Promise.all([
+  const [produtos, total, ativos] = await Promise.all([
     prisma.produto.findMany({
       where,
       orderBy: { criadoEm: 'desc' },
@@ -171,10 +174,15 @@ router.get('/meus', authMiddleware, requireRole('VENDEDOR'), asyncHandler(async 
       take: limite,
     }),
     prisma.produto.count({ where }),
+    // Quantos anúncios ativos o vendedor tem, qualquer que seja o filtro, para o app avisar do limite
+    prisma.produto.count({
+      where: { condominioId: req.user!.condominioId, vendedorId: req.user!.id, status: 'ATIVO' },
+    }),
   ]);
 
   res.json({
     produtos: await comAvaliacoes(prisma, await comMotivoDeQuarentena(produtos, req.user!.tipo === 'SINDICO')),
+    ativos: { total: ativos, limite: LIMITE_ATIVOS },
     paginacao: {
       pagina,
       limite,
@@ -294,7 +302,7 @@ router.patch('/:id/status', authMiddleware, asyncHandler(async (req: AuthRequest
       },
     });
 
-    if (ativosCount >= 15) {
+    if (ativosCount >= LIMITE_ATIVOS) {
       throw new AppError(400, 'Limite de 15 produtos ativos atingido. Pause ou exclua um produto antes de ativar outro.', 'LIMIT_EXCEEDED');
     }
   }
