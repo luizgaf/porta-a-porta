@@ -162,9 +162,10 @@ router.get('/meus', authMiddleware, requireRole('VENDEDOR'), asyncHandler(async 
   const where: Record<string, unknown> = {
     condominioId: req.user!.condominioId,
     vendedorId: req.user!.id,
+    // Anúncio excluído some do painel do vendedor. Ele só continua no banco (exclusão lógica)
+    // porque pedidos e avaliações antigos apontam para ele
+    status: status && status !== 'EXCLUIDO' ? status : { not: 'EXCLUIDO' },
   };
-
-  if (status) where.status = status;
 
   const [produtos, total, ativos] = await Promise.all([
     prisma.produto.findMany({

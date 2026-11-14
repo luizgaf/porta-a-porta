@@ -235,7 +235,7 @@ export default function SellerScreen() {
     </TouchableOpacity>
   );
 
-  const statusOptions = ['TODOS', 'ATIVO', 'PAUSADO', 'QUARENTENA', 'EXCLUIDO'];
+  const statusOptions = ['TODOS', 'ATIVO', 'PAUSADO', 'QUARENTENA'];
 
   if (!isVendedor) {
     return (
