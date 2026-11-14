@@ -11,8 +11,24 @@ const prisma = new PrismaClient();
 
 // RN02: as avaliações do pedido (uma por produto) só aparecem para quem as escreveu; o vendedor
 // vê o pedido sem elas, para não ligar a nota ao comprador
-const ocultarAvaliacaoDeTerceiros = <T extends { compradorId: string; avaliacoes?: unknown[] }>(pedido: T, usuarioId: string) =>
-  pedido.compradorId === usuarioId ? pedido : { ...pedido, avaliacoes: [] };
+//
+// Quem não é o comprador vê só os próprios itens e o total deles. Pedidos novos já têm um vendedor
+// só, mas os gravados antes da separação por vendedor podem misturar produtos de vendedores
+// diferentes, e um vendedor não deve ver o que o comprador levou de outro.
+type PedidoComItens = {
+  compradorId: string;
+  valorTotal?: unknown;
+  avaliacoes?: unknown[];
+  itens?: { quantidade: number; precoUnitario?: unknown; produto?: { vendedorId?: string } | null }[];
+};
+const ocultarAvaliacaoDeTerceiros = <T extends PedidoComItens>(pedido: T, usuarioId: string): T => {
+  if (pedido.compradorId === usuarioId) return pedido;
+  const todos = pedido.itens ?? [];
+  const meus = todos.filter((i) => i.produto?.vendedorId === usuarioId);
+  if (meus.length === 0 || meus.length === todos.length) return { ...pedido, avaliacoes: [] };
+  const valorTotal = meus.reduce((soma, i) => soma + Number(i.precoUnitario ?? 0) * i.quantidade, 0);
+  return { ...pedido, itens: meus, valorTotal, avaliacoes: [] };
+};
 
 const avaliacoesDoPedido = {
   select: { id: true, produtoId: true, nota: true, comentario: true, criadoEm: true, removidaPor: true },
@@ -61,66 +77,69 @@ router.post('/', authMiddleware, requireRole('COMPRADOR'), asyncHandler(async (r
     throw new AppError(400, 'Você não pode comprar o seu próprio produto', 'PRODUTO_PROPRIO');
   }
 
-  // Calcula valor total
-  let valorTotal = 0;
-  const itensPedido = data.itens.map((item) => {
+  // Um carrinho com produtos de vendedores diferentes vira um pedido por vendedor. Cada vendedor
+  // só vê e conduz o próprio pedido (status, itens e total), e o comprador acompanha cada um.
+  const porVendedor = new Map<string, { produtoId: string; quantidade: number; precoUnitario: number }[]>();
+  for (const item of data.itens) {
     const produto = produtos.find((p: typeof produtos[0]) => p.id === item.produtoId)!;
-    const precoUnitario = Number(produto.preco);
-    valorTotal += precoUnitario * item.quantidade;
-    return {
-      produtoId: item.produtoId,
-      quantidade: item.quantidade,
-      precoUnitario,
-    };
-  });
+    const chave = (produto as { vendedorId?: string }).vendedorId ?? '';
+    const itens = porVendedor.get(chave) ?? [];
+    // Preço do banco, congelado no item (RN03); o que o app manda é ignorado
+    itens.push({ produtoId: item.produtoId, quantidade: item.quantidade, precoUnitario: Number(produto.preco) });
+    porVendedor.set(chave, itens);
+  }
 
-  // Cria pedido com transação
-  const pedido = await prisma.$transaction(async (tx) => {
-    const novoPedido = await tx.pedido.create({
-      data: {
-        condominioId: req.user!.condominioId,
-        compradorId: req.user!.id,
-        unidadeEntrega: data.unidadeEntrega,
-        tipoEntrega: data.tipoEntrega,
-        janelaHorario: data.janelaHorario,
+  const totalDe = (itens: { quantidade: number; precoUnitario: number }[]) =>
+    itens.reduce((soma, item) => soma + item.precoUnitario * item.quantidade, 0);
+
+  // Todos os pedidos são gravados juntos: ou o carrinho inteiro vira pedido, ou nada é gravado
+  const criados = await prisma.$transaction(async (tx) => {
+    const resultado: { id: string; vendedorId: string; valorTotal: number; quantidade: number }[] = [];
+    for (const [vendedorId, itens] of porVendedor) {
+      const valorTotal = totalDe(itens);
+      const novoPedido = await tx.pedido.create({
+        data: {
+          condominioId: req.user!.condominioId,
+          compradorId: req.user!.id,
+          unidadeEntrega: data.unidadeEntrega,
+          tipoEntrega: data.tipoEntrega,
+          janelaHorario: data.janelaHorario,
+          valorTotal,
+          status: 'PENDENTE',
+        },
+      });
+
+      await tx.itemPedido.createMany({
+        data: itens.map((item) => ({ ...item, pedidoId: novoPedido.id })),
+      });
+
+      resultado.push({
+        id: novoPedido.id,
+        vendedorId,
         valorTotal,
-        status: 'PENDENTE',
-      },
-    });
-
-    await tx.itemPedido.createMany({
-      data: itensPedido.map((item) => ({
-        ...item,
-        pedidoId: novoPedido.id,
-      })),
-    });
-
-    return novoPedido;
+        quantidade: itens.reduce((soma, item) => soma + item.quantidade, 0),
+      });
+    }
+    return resultado;
   });
 
-  // Aviso interno para cada vendedor com item no pedido (HU04)
-  const vendedores = [...new Set(produtos.map((p: { vendedorId?: string }) => p.vendedorId).filter(Boolean))] as string[];
-  await notificar(prisma, vendedores.map((vendedorId) => {
-    const itensDoVendedor = data.itens.filter((item) =>
-      produtos.some((p: { id: string; vendedorId?: string }) => p.id === item.produtoId && p.vendedorId === vendedorId));
-    const quantidade = itensDoVendedor.reduce((soma, item) => soma + item.quantidade, 0);
-    return {
-      condominioId: req.user!.condominioId,
-      usuarioId: vendedorId,
-      tipo: 'NOVO_PEDIDO' as const,
-      mensagem: `Novo pedido para entrega em ${data.unidadeEntrega}: ${quantidade} ${quantidade === 1 ? 'item' : 'itens'}, janela ${data.janelaHorario}. Total do pedido: ${formatarValor(valorTotal)}.`,
-      entidadeTipo: 'PEDIDO' as const,
-      entidadeId: pedido.id,
-    };
-  }));
+  // Aviso interno para o vendedor de cada pedido (HU04), com o total só dos itens dele
+  await notificar(prisma, criados.filter((c) => c.vendedorId).map((c) => ({
+    condominioId: req.user!.condominioId,
+    usuarioId: c.vendedorId,
+    tipo: 'NOVO_PEDIDO' as const,
+    mensagem: `Novo pedido para entrega em ${data.unidadeEntrega}: ${c.quantidade} ${c.quantidade === 1 ? 'item' : 'itens'}, janela ${data.janelaHorario}. Total do pedido: ${formatarValor(c.valorTotal)}.`,
+    entidadeTipo: 'PEDIDO' as const,
+    entidadeId: c.id,
+  })));
 
-  const pedidoCompleto = await prisma.pedido.findUnique({
-    where: { id: pedido.id },
+  const pedidos = await prisma.pedido.findMany({
+    where: { id: { in: criados.map((c) => c.id) } },
     include: {
       itens: {
         include: {
           produto: {
-            select: { id: true, nome: true, descricao: true, categoria: true },
+            select: { id: true, nome: true, descricao: true, categoria: true, vendedorId: true },
           },
         },
       },
@@ -130,7 +149,8 @@ router.post('/', authMiddleware, requireRole('COMPRADOR'), asyncHandler(async (r
     },
   });
 
-  res.status(201).json({ pedido: pedidoCompleto });
+  // "pedido" continua para quem espera um só (o primeiro); "pedidos" traz todos, um por vendedor
+  res.status(201).json({ pedido: pedidos?.[0] ?? null, pedidos: pedidos ?? [] });
 }));
 
 // GET /api/pedidos - Pedidos em que o usuário é comprador ou vendedor de algum item.
@@ -177,7 +197,7 @@ router.get('/', authMiddleware, asyncHandler(async (req: AuthRequest, res: Respo
   await unidadesNoCondominio(prisma, req.user!.condominioId, pedidos.map((p) => p.comprador));
 
   res.json({
-    pedidos: pedidos.map((p: { compradorId: string; avaliacoes?: unknown[] }) => ocultarAvaliacaoDeTerceiros(p, req.user!.id)),
+    pedidos: pedidos.map((p: PedidoComItens) => ocultarAvaliacaoDeTerceiros(p, req.user!.id)),
     paginacao: {
       pagina,
       limite,

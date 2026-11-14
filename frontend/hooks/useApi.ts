@@ -190,7 +190,8 @@ export const useApi = () => {
   }, []);
 
   const createPedido = useCallback(async (data: CreatePedidoData) => {
-    return api.post<{ pedido: Pedido }>('/pedidos', data);
+    // Um carrinho com produtos de vendedores diferentes vira um pedido por vendedor
+    return api.post<{ pedido: Pedido; pedidos: Pedido[] }>('/pedidos', data);
   }, []);
 
   const updatePedidoStatus = useCallback(async (id: string, data: UpdatePedidoStatusData) => {

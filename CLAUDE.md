@@ -95,7 +95,7 @@ npm run prisma:studio
 - `DELETE /api/produtos/:id` — Soft delete (status=EXCLUIDO)
 
 ### Pedidos
-- `POST /api/pedidos` — Criar (COMPRADOR, calcula valor_total no backend)
+- `POST /api/pedidos` — Criar (COMPRADOR, calcula valor_total no backend). Carrinho com produtos de vendedores diferentes vira **um pedido por vendedor** (mesma entrega e horário, numa transação só); resposta `{ pedido, pedidos }`. Migração `20261113220000_pedido_por_vendedor` separa os pedidos antigos misturados
 - `GET /api/pedidos` — Listar (filtrado por role: comprador/vendedor/síndico)
 - `GET /api/pedidos/:id` — Detalhes
 - `PATCH /api/pedidos/:id/status` — Atualizar status (máquina de estados validada)
