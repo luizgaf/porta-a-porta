@@ -75,7 +75,7 @@ export default function CartScreen() {
     setLoading(true);
 
     try {
-      await createPedido({
+      const resposta = await createPedido({
         itens: items.map(item => ({
           produtoId: item.produto.id,
           quantidade: item.quantidade,
@@ -86,10 +86,18 @@ export default function CartScreen() {
       });
 
       clearCart();
-      Alert.alert('Sucesso!', 'Pedido realizado com sucesso', [
-        { text: 'Ver Pedidos', onPress: () => router.push('/(tabs)/orders') },
-        { text: 'OK', style: 'cancel' },
-      ]);
+      // Cada vendedor recebe o próprio pedido; o comprador acompanha todos em "Pedidos"
+      const quantos = resposta.pedidos?.length ?? 1;
+      Alert.alert(
+        'Sucesso!',
+        quantos > 1
+          ? `Seu carrinho tinha produtos de ${quantos} vendedores, então viraram ${quantos} pedidos, um para cada vendedor. Acompanhe cada um em Pedidos.`
+          : 'Pedido realizado com sucesso',
+        [
+          { text: 'Ver Pedidos', onPress: () => router.push('/(tabs)/orders') },
+          { text: 'OK', style: 'cancel' },
+        ],
+      );
     } catch (err: any) {
       setError(err.message || 'Erro ao criar pedido');
     } finally {
@@ -127,11 +135,24 @@ export default function CartScreen() {
     );
   }
 
+  // Um pedido por vendedor: o carrinho mostra antes como ele vai ser dividido
+  const porVendedor = items.reduce<{ id: string; nome: string; total: number }[]>((lista, item) => {
+    const id = item.produto.vendedorId || item.produto.vendedor?.id || 'sem-vendedor';
+    const atual = lista.find((v) => v.id === id);
+    const valor = toNumber(item.produto.preco) * item.quantidade;
+    if (atual) atual.total += valor;
+    else lista.push({ id, nome: item.produto.vendedor?.nome || 'Vendedor', total: valor });
+    return lista;
+  }, []);
+
   const renderItem = ({ item }: { item: { produto: Produto; quantidade: number } }) => (
     <View style={styles.cartItem}>
       <ProductImage url={item.produto.imagemUrl} style={styles.itemImage} iconSize={24} />
       <View style={styles.itemInfo} >
         <Text style={styles.itemNome} numberOfLines={2}>{item.produto.nome}</Text>
+        {item.produto.vendedor?.nome ? (
+          <Text style={styles.itemVendedor} numberOfLines={1}>Vendido por {item.produto.vendedor.nome}</Text>
+        ) : null}
         <Text style={styles.itemPreco}>{formatBRL(item.produto.preco)} cada</Text>
         <View style={styles.quantityControls}>
           <TouchableOpacity
@@ -266,6 +287,25 @@ export default function CartScreen() {
         </Card>
 
         <Card style={styles.summaryCard}>
+          {porVendedor.length > 1 ? (
+            <View style={styles.avisoVendedores}>
+              <Ionicons name="storefront-outline" size={18} color="#C65D3B" />
+              <View style={styles.avisoTexto}>
+                <Text style={styles.avisoTitulo}>
+                  {porVendedor.length} vendedores: serão {porVendedor.length} pedidos
+                </Text>
+                <Text style={styles.avisoDetalhe}>
+                  Cada vendedor recebe só o pedido dele, com a mesma entrega e o mesmo horário.
+                </Text>
+                {porVendedor.map((v) => (
+                  <View key={v.id} style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel} numberOfLines={1}>{v.nome}</Text>
+                    <Text style={styles.summaryValue}>{formatBRL(v.total)}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : null}
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Subtotal ({totalItems} itens)</Text>
             <Text style={styles.summaryValue}>{formatBRL(totalValue)}</Text>
@@ -282,7 +322,7 @@ export default function CartScreen() {
           {error && <Text style={styles.errorText}>{error}</Text>}
 
           <Button
-            title={`Finalizar Pedido - ${formatBRL(totalValue)}`}
+            title={`${porVendedor.length > 1 ? `Finalizar ${porVendedor.length} pedidos` : 'Finalizar Pedido'} - ${formatBRL(totalValue)}`}
             onPress={handleFinalizarPedido}
             loading={loading}
             fullWidth
@@ -299,6 +339,35 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FDFBF7',
+  },
+  itemVendedor: {
+    fontSize: 12,
+    color: '#6B7A8A',
+    marginBottom: 2,
+  },
+  avisoVendedores: {
+    flexDirection: 'row',
+    gap: 10,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#FBF0EB',
+    borderWidth: 1,
+    borderColor: '#F2D3C6',
+    marginBottom: 14,
+  },
+  avisoTexto: {
+    flex: 1,
+    gap: 2,
+  },
+  avisoTitulo: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1B2A3A',
+  },
+  avisoDetalhe: {
+    fontSize: 13,
+    color: '#6B7A8A',
+    marginBottom: 4,
   },
   scrollContent: {
     paddingHorizontal: 16,
