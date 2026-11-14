@@ -88,3 +88,20 @@ describe('Produtos', () => {
     );
   });
 });
+
+describe('Limite de anúncios no painel do vendedor', () => {
+  test('TU62 - a lista de anúncios do vendedor informa quantos estão ativos e o limite, mesmo filtrando outro status (RN01)', async () => {
+    const token = entrarComo(vendedor);
+    prismaMock.produto.findMany.mockResolvedValue([]);
+    // 1ª contagem: anúncios do filtro (pausados); 2ª: anúncios ativos do vendedor
+    prismaMock.produto.count.mockResolvedValueOnce(2).mockResolvedValueOnce(15);
+
+    const { status, corpo } = await chamar('GET', '/api/produtos/meus?status=PAUSADO', token);
+
+    expect(status).toBe(200);
+    expect(corpo.ativos).toEqual({ total: 15, limite: 15 });
+    expect(prismaMock.produto.count).toHaveBeenLastCalledWith({
+      where: { condominioId: CONDOMINIO_A, vendedorId: vendedor.id, status: 'ATIVO' },
+    });
+  });
+});

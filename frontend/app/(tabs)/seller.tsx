@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Alert, ScrollView, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
@@ -30,6 +30,25 @@ export default function SellerScreen() {
     categoria: CATEGORIAS[0],
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  // RN01: anúncios ativos do vendedor neste condomínio, contados pela API (não só os da página carregada)
+  const [ativos, setAtivos] = useState({ total: 0, limite: 15 });
+  const limiteAtingido = ativos.total >= ativos.limite;
+
+  const avisarLimite = (acao: 'criar' | 'ativar') =>
+    Alert.alert(
+      `Limite de ${ativos.limite} anúncios ativos`,
+      `Você já tem ${ativos.limite} anúncios ativos, que é o máximo permitido. ` +
+        `Pause ou exclua um anúncio para ${acao === 'criar' ? 'criar um novo' : 'ativar este'}.`,
+    );
+
+  // O botão "+ Novo Produto" avisa do limite em vez de abrir o formulário
+  const abrirCriacao = () => {
+    if (limiteAtingido) {
+      avisarLimite('criar');
+      return;
+    }
+    setShowCreateModal(true);
+  };
 
   const carregarProdutos = useCallback(async (paginaAtual = 1, isRefresh = false) => {
     if (!isRefresh) setLoading(true);
@@ -44,6 +63,7 @@ export default function SellerScreen() {
       } else {
         setProdutos(prev => [...prev, ...produtosData]);
       }
+      if (response.ativos) setAtivos(response.ativos);
       setPagina(response.paginacao.pagina);
       setTotalPaginas(response.paginacao.totalPaginas);
     } catch (error: any) {
@@ -94,7 +114,14 @@ export default function SellerScreen() {
       carregarProdutos(1, true);
       Alert.alert('Sucesso', 'Produto criado com sucesso!');
     } catch (error: any) {
-      Alert.alert('Erro', error.message || 'Erro ao criar produto');
+      if (error.code === 'LIMIT_EXCEEDED') {
+        // Fecha o formulário antes do aviso, para ele não ficar por cima
+        setShowCreateModal(false);
+        carregarProdutos(1, true);
+        avisarLimite('criar');
+      } else {
+        Alert.alert('Erro', error.message || 'Erro ao criar produto');
+      }
     } finally {
       setCreating(false);
     }
@@ -102,13 +129,19 @@ export default function SellerScreen() {
 
   const handleToggleStatus = async (produto: Produto) => {
     const newStatus = produto.status === 'ATIVO' ? 'PAUSADO' : 'ATIVO';
+    if (newStatus === 'ATIVO' && limiteAtingido) {
+      avisarLimite('ativar');
+      return;
+    }
     try {
       await updateProdutoStatus(produto.id, newStatus);
       setProdutos(prev =>
         prev.map(p => p.id === produto.id ? { ...p, status: newStatus } : p)
       );
+      setAtivos(a => ({ ...a, total: a.total + (newStatus === 'ATIVO' ? 1 : -1) }));
     } catch (error: any) {
-      Alert.alert('Erro', error.message || 'Erro ao alterar status');
+      if (error.code === 'LIMIT_EXCEEDED') avisarLimite('ativar');
+      else Alert.alert('Erro', error.message || 'Erro ao alterar status');
     }
   };
 
@@ -125,6 +158,7 @@ export default function SellerScreen() {
             try {
               await deleteProduto(produto.id);
               setProdutos(prev => prev.filter(p => p.id !== produto.id));
+              if (produto.status === 'ATIVO') setAtivos(a => ({ ...a, total: Math.max(0, a.total - 1) }));
             } catch (error: any) {
               Alert.alert('Erro', error.message || 'Erro ao excluir');
             }
@@ -235,17 +269,27 @@ export default function SellerScreen() {
         <View style={styles.headerContent}>
           <View>
             <Text style={styles.headerTitle}>Painel do Vendedor</Text>
-            <Text style={styles.headerSubtitle}>
-              {produtos.filter(p => p.status === 'ATIVO').length}/15 produtos ativos
+            <Text style={[styles.headerSubtitle, limiteAtingido && styles.headerSubtitleLimite]}>
+              {ativos.total}/{ativos.limite} produtos ativos
             </Text>
           </View>
           <Button
             title="+ Novo Produto"
-            onPress={() => setShowCreateModal(true)}
+            onPress={abrirCriacao}
             size="md"
+            variant={limiteAtingido ? 'outline' : 'primary'}
             style={styles.addButton}
           />
         </View>
+
+        {limiteAtingido ? (
+          <View style={styles.avisoLimite}>
+            <Ionicons name="alert-circle" size={18} color="#B54708" />
+            <Text style={styles.avisoLimiteTexto}>
+              Você atingiu o limite de {ativos.limite} anúncios ativos. Pause ou exclua um para criar ou ativar outro.
+            </Text>
+          </View>
+        ) : null}
 
         <FlatList
           data={statusOptions}
@@ -267,7 +311,7 @@ export default function SellerScreen() {
             {statusFilter ? 'Tente outro filtro' : 'Crie seu primeiro produto para começar a vender'}
           </Text>
           {!statusFilter && (
-            <Button title="Criar Produto" onPress={() => setShowCreateModal(true)} style={styles.emptyButton} />
+            <Button title="Criar Produto" onPress={abrirCriacao} style={styles.emptyButton} />
           )}
         </View>
       ) : (
@@ -286,9 +330,16 @@ export default function SellerScreen() {
         />
       )}
 
-      {/* Create Modal */}
-      {showCreateModal && (
-        <TouchableOpacity style={styles.modalOverlay} onPress={() => setShowCreateModal(false)} activeOpacity={1}>
+      {/* Formulário de novo produto. É um Modal de verdade: antes era uma camada dentro da rolagem,
+          que com muitos anúncios ficava fora da tela e deixava só o fundo cinza à vista */}
+      <Modal
+        visible={showCreateModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCreateModal(false)}
+      >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalFundo} onPress={() => setShowCreateModal(false)} activeOpacity={1} />
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Novo Produto</Text>
@@ -357,8 +408,8 @@ export default function SellerScreen() {
               <Button title="Criar" onPress={handleCreateProduto} loading={creating} style={styles.botaoMetade} />
             </View>
           </View>
-        </TouchableOpacity>
-      )}
+        </KeyboardAvoidingView>
+      </Modal>
     </ScrollView>
   );
 }
@@ -517,13 +568,33 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
+  },
+  modalFundo: {
+    flex: 1,
+  },
+  headerSubtitleLimite: {
+    color: '#B54708',
+    fontWeight: '600',
+  },
+  avisoLimite: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    padding: 12,
+    marginTop: 12,
+    borderRadius: 10,
+    backgroundColor: '#FFFAEB',
+    borderWidth: 1,
+    borderColor: '#FEDF89',
+  },
+  avisoLimiteTexto: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#7A2E0E',
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
