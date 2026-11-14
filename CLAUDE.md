@@ -88,7 +88,7 @@ npm run prisma:studio
 ### Produtos
 - `POST /api/produtos` — Criar (VENDEDOR, valida RN01)
 - `GET /api/produtos` — Listar ATIVOS/PAUSADOS (filtro categoria, busca)
-- `GET /api/produtos/meus` — Meus produtos (VENDEDOR), com `ativos: { total, limite }` (RN01, independe do filtro)
+- `GET /api/produtos/meus` — Meus produtos (VENDEDOR), sem os EXCLUIDOS, com `ativos: { total, limite }` (RN01, independe do filtro)
 - `GET /api/produtos/:id` — Detalhes
 - `PUT /api/produtos/:id` — Atualizar (dono/SINDICO)
 - `PATCH /api/produtos/:id/status` — Alterar status (valida RN01 ao ativar)

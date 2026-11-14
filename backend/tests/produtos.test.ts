@@ -105,3 +105,18 @@ describe('Limite de anúncios no painel do vendedor', () => {
     });
   });
 });
+
+describe('Anúncio excluído', () => {
+  test('TU63 - anúncio excluído não aparece mais na lista do vendedor, nem pedindo pelo filtro', async () => {
+    const token = entrarComo(vendedor);
+    prismaMock.produto.findMany.mockResolvedValue([]);
+    prismaMock.produto.count.mockResolvedValue(0);
+
+    await chamar('GET', '/api/produtos/meus', token);
+    await chamar('GET', '/api/produtos/meus?status=EXCLUIDO', token);
+    await chamar('GET', '/api/produtos/meus?status=PAUSADO', token);
+
+    const filtros = prismaMock.produto.findMany.mock.calls.map(([arg]) => arg.where.status);
+    expect(filtros).toEqual([{ not: 'EXCLUIDO' }, { not: 'EXCLUIDO' }, 'PAUSADO']);
+  });
+});
